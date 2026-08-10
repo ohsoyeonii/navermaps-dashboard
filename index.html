@@ -239,6 +239,7 @@ input[type=file]{display:none;}
 .section-header .sh-actions{margin-left:auto;display:flex;gap:8px;align-items:center;position:relative;}
 .section-header select{border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-size:12px;background:var(--bg);color:var(--text);font-weight:400;}
 #mediaDetailSectionCard .section-header,#mediaDetailSectionCard .btn{font-weight:400;}
+#creativeTop10SATable th{text-align:center;}
 
 .kpi-header{display:flex;align-items:center;gap:10px;margin:20px 0 12px;}
 .kpi-header .title{font-size:15px;font-weight:600;}
@@ -1667,12 +1668,14 @@ function applyFreezeLayout(wrapId, tableId, handleId, state){
         cell.style.left = offsets[i]+"px";
         cell.style.zIndex = isHeader ? 15 : (isTotal ? 12 : 10);
         cell.style.background = frozenBg;
+        cell.style.textAlign = "";
         if(i===frozenCount-1) cell.classList.add("freeze-edge-left");
       } else {
         cell.style.position = "";
         cell.style.left = "";
         cell.style.zIndex = "";
         cell.style.background = "";
+        cell.style.textAlign = "center";
       }
     });
   });
@@ -2304,14 +2307,14 @@ function renderCreativeTop10SA(flatRows){
   const totalDerived = derive(agg);
 
   let html = '<table class="data-table" id="creativeTop10SATable"><thead><tr>'+
-    '<th>#</th><th class="left">매체</th><th class="left">캠페인</th><th class="left">광고그룹</th><th class="left">키워드</th>'+
+    '<th>#</th><th>매체</th><th>캠페인</th><th>광고그룹</th><th>키워드</th>'+
     CREATIVE_SA_COLUMNS.map(c=>'<th>'+escapeHtml(c.label)+'</th>').join("")+
     '</tr></thead><tbody>';
-  html += '<tr class="total-row"><td></td><td class="left">Total</td><td class="left"></td><td class="left"></td><td class="left"></td>'+
+  html += '<tr class="total-row"><td></td><td>Total</td><td></td><td></td><td></td>'+
     CREATIVE_SA_COLUMNS.map(c=>{ const m=METRIC_BY_ID[c.id]; return '<td>'+fmtMetric(m, m.get(totalDerived), false)+'</td>'; }).join("")+
     '</tr>';
   top10.forEach((r,i)=>{
-    html += '<tr><td>'+(i+1)+'</td><td class="left">'+escapeHtml(r.media)+'</td><td class="left">'+escapeHtml(r.campaign)+'</td><td class="left">'+escapeHtml(r.adgroup)+'</td><td class="left">'+escapeHtml(r.label)+'</td>'+
+    html += '<tr><td>'+(i+1)+'</td><td>'+escapeHtml(r.media)+'</td><td>'+escapeHtml(r.campaign)+'</td><td>'+escapeHtml(r.adgroup)+'</td><td>'+escapeHtml(r.label)+'</td>'+
       CREATIVE_SA_COLUMNS.map(c=>{ const m=METRIC_BY_ID[c.id]; return '<td>'+fmtMetric(m, m.get(r.d), false)+'</td>'; }).join("")+
       '</tr>';
   });
