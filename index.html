@@ -626,17 +626,30 @@ th.col-drop-after{box-shadow:inset -3px 0 0 0 var(--primary);}
         <!-- ================= CREATIVE VIEW ================= -->
         <section class="view" id="view-creative">
           <div class="section-card">
-            <div class="section-header">🏆 고효율 소재 TOP10 (DA · ROAS 기준)
+            <div class="section-header">🏆 고효율 소재 TOP 10
               <div class="sh-actions">
                 <span class="creative-media-status" id="creativeMediaStatus"></span>
                 <button class="btn small" id="refreshCreativeMediaBtn">🔄 이미지 새로고침</button>
+                <div class="custom-select" id="creativeTop10DASortWrap">
+                  <select id="creativeTop10DASort-native" class="native-select-hidden" tabindex="-1" aria-hidden="true"></select>
+                  <button type="button" class="cs-trigger cs-trigger-sm" id="creativeTop10DASort-trigger"><span class="cs-trigger-label"></span><span class="cs-trigger-arrow">▾</span></button>
+                  <div class="cs-panel" id="creativeTop10DASort-panel" role="listbox"></div>
+                </div>
               </div>
             </div>
             <div class="creative-top10-grid" id="creativeTop10Grid"></div>
           </div>
 
           <div class="section-card">
-            <div class="section-header">🔑 고효율 키워드 TOP 10 (구매 기준)</div>
+            <div class="section-header">🔑 고효율 키워드 TOP 10
+              <div class="sh-actions">
+                <div class="custom-select" id="creativeTop10SASortWrap">
+                  <select id="creativeTop10SASort-native" class="native-select-hidden" tabindex="-1" aria-hidden="true"></select>
+                  <button type="button" class="cs-trigger cs-trigger-sm" id="creativeTop10SASort-trigger"><span class="cs-trigger-label"></span><span class="cs-trigger-arrow">▾</span></button>
+                  <div class="cs-panel" id="creativeTop10SASort-panel" role="listbox"></div>
+                </div>
+              </div>
+            </div>
             <div class="table-scroll" id="creativeTop10SAWrap"></div>
           </div>
 
@@ -831,6 +844,8 @@ const App = {
   creativeView:{ visibleCols:new Set(TABLE_COLUMNS) },
   creativeMediaMap:null,
   creativeMediaMapStatus:"idle",
+  creativeTop10DASort:"roas",
+  creativeTop10SASort:"purchase",
   historyRecords:[],
   historyStatus:"idle",
   historySortOrder:"desc",
@@ -2256,6 +2271,23 @@ const CREATIVE_SA_COLUMNS = [
   {id:"purchase", label:"예약확정(구매)"}, {id:"revenue", label:"Revenue"}
 ];
 
+const CREATIVE_TOP10_SORT_OPTIONS = [
+  {value:"roas", label:"ROAS"},
+  {value:"purchase", label:"구매(예약확정)"},
+  {value:"cpaIntegrated", label:"통합 CPA"},
+  {value:"installs", label:"인스톨"},
+  {value:"costGross", label:"비용"},
+  {value:"revenue", label:"Revenue"}
+];
+
+function rankTop10ByMetric(flatRows, metricId){
+  const m = METRIC_BY_ID[metricId];
+  const withSpend = flatRows.filter(r=>r.d.costGross>0);
+  const asc = m.dir==="down";
+  const valOrWorst = r=>{ const v=m.get(r.d); return (v===null||v===undefined||!isFinite(v)) ? (asc?Infinity:0) : v; };
+  return withSpend.slice().sort((a,b)=> asc ? valOrWorst(a)-valOrWorst(b) : valOrWorst(b)-valOrWorst(a)).slice(0,10);
+}
+
 function renderCreativeTop10(flatRows){
   const daRows = flatRows.filter(r=>r.purposeType==="DA");
   const saRows = flatRows.filter(r=>r.purposeType==="SA");
@@ -2264,10 +2296,18 @@ function renderCreativeTop10(flatRows){
 }
 
 function renderCreativeTop10DA(flatRows){
-  const rm = METRIC_BY_ID.roas;
-  const withSpend = flatRows.filter(r=>r.d.costGross>0);
-  const roasOrZero = r=>{ const v=rm.get(r.d); return (v===null||v===undefined||!isFinite(v))?0:v; };
-  const top10 = withSpend.slice().sort((a,b)=>roasOrZero(b)-roasOrZero(a)).slice(0,10);
+  if(!CustomSelect["creativeTop10DASort"]){
+    registerCustomSelect("creativeTop10DASort","creativeTop10DASort-native","creativeTop10DASortWrap","creativeTop10DASort-trigger","creativeTop10DASort-panel");
+    document.getElementById("creativeTop10DASort-native").addEventListener("change", ()=>{
+      App.creativeTop10DASort = document.getElementById("creativeTop10DASort-native").value;
+      renderCreativeView();
+    });
+  }
+  fillCustomSelect("creativeTop10DASort", CREATIVE_TOP10_SORT_OPTIONS, App.creativeTop10DASort);
+
+  const sortMetricId = App.creativeTop10DASort;
+  const sm = METRIC_BY_ID[sortMetricId];
+  const top10 = rankTop10ByMetric(flatRows, sortMetricId);
 
   const statusEl = document.getElementById("creativeMediaStatus");
   statusEl.textContent = App.creativeMediaMapStatus==="loading" ? "이미지 불러오는 중..." :
@@ -2287,7 +2327,7 @@ function renderCreativeTop10DA(flatRows){
       thumbHtml+
       '<div class="top10-name" title="'+escapeHtml(r.label)+'">'+escapeHtml(r.label)+'</div>'+
       '<div class="top10-sub">'+escapeHtml(r.media)+' · '+escapeHtml(r.campaign)+' · '+escapeHtml(r.adgroup)+'</div>'+
-      '<div class="top10-roas">ROAS '+fmtMetric(rm, rm.get(r.d), false)+'</div>'+
+      '<div class="top10-roas">'+sm.label+' '+fmtMetric(sm, sm.get(r.d), false)+'</div>'+
       '<div class="top10-metrics">'+metricsHtml+'</div>'+
     '</div>';
   }).join("") : '<div class="empty-hint">표시할 소재가 없습니다.</div>';
@@ -2303,7 +2343,17 @@ function selectTop10Keywords(flatRows){
 }
 
 function renderCreativeTop10SA(flatRows){
-  const top10 = selectTop10Keywords(flatRows);
+  if(!CustomSelect["creativeTop10SASort"]){
+    registerCustomSelect("creativeTop10SASort","creativeTop10SASort-native","creativeTop10SASortWrap","creativeTop10SASort-trigger","creativeTop10SASort-panel");
+    document.getElementById("creativeTop10SASort-native").addEventListener("change", ()=>{
+      App.creativeTop10SASort = document.getElementById("creativeTop10SASort-native").value;
+      renderCreativeView();
+    });
+  }
+  fillCustomSelect("creativeTop10SASort", CREATIVE_TOP10_SORT_OPTIONS, App.creativeTop10SASort);
+
+  const sortMetricId = App.creativeTop10SASort;
+  const top10 = sortMetricId==="purchase" ? selectTop10Keywords(flatRows) : rankTop10ByMetric(flatRows, sortMetricId);
   const agg = newAggBucket();
   top10.forEach(r=>{ Object.keys(agg).forEach(k=>{ if(typeof r.d[k]==="number") agg[k]+=r.d[k]||0; }); });
   const totalDerived = derive(agg);
@@ -2335,6 +2385,11 @@ function creativeFlatColumns(){
   return CREATIVE_FLAT_LEAD_COLS.concat(metricCols);
 }
 const CREATIVE_FLAT_SORT_KEY = {__media:"media", __campaign:"campaign", __adgroup:"adgroup", __creative:"label"};
+const CREATIVE_FLAT_COL_MAXWIDTH = {__media:70, __campaign:120, __adgroup:120, __creative:120};
+function creativeFlatCellStyle(id){
+  const w = CREATIVE_FLAT_COL_MAXWIDTH[id];
+  return w ? ' style="max-width:'+w+'px;overflow:hidden;text-overflow:ellipsis;"' : '';
+}
 
 function renderCreativeFlatTable(flatRows, totalD){
   const gridState = getGridState("creative", 4);
@@ -2358,23 +2413,23 @@ function renderCreativeFlatTable(flatRows, totalD){
   let html = freezeHandleHTML("creativeFreezeHandle")+'<table class="data-table" id="creativeTable"><thead><tr>';
   cols.forEach(c=>{
     const arrow = sortState.col===c.id ? (sortState.dir==="asc"?"▲":"▼") : "";
-    html += '<th class="'+(c.alignLeft?"left":"")+'" data-sortcol="'+c.id+'" data-colid="'+c.id+'">'+escapeHtml(c.label)+' <span class="arrow">'+arrow+'</span></th>';
+    html += '<th class="'+(c.alignLeft?"left":"")+'" data-sortcol="'+c.id+'" data-colid="'+c.id+'"'+creativeFlatCellStyle(c.id)+'>'+escapeHtml(c.label)+' <span class="arrow">'+arrow+'</span></th>';
   });
   html += '</tr></thead><tbody>';
   html += '<tr class="total-row">';
   cols.forEach(c=>{
-    if(c.id==="__media"){ html += '<td class="left">Total</td>'; return; }
-    if(c.id==="__campaign" || c.id==="__adgroup" || c.id==="__creative"){ html += '<td class="left">-</td>'; return; }
+    if(c.id==="__media"){ html += '<td class="left"'+creativeFlatCellStyle(c.id)+'>Total</td>'; return; }
+    if(c.id==="__campaign" || c.id==="__adgroup" || c.id==="__creative"){ html += '<td class="left"'+creativeFlatCellStyle(c.id)+'>-</td>'; return; }
     const m=METRIC_BY_ID[c.id]; html += '<td>'+fmtMetric(m, m.get(totalD), false)+'</td>';
   });
   html += '</tr>';
   sortedRows.forEach(row=>{
     html += '<tr>';
     cols.forEach(c=>{
-      if(c.id==="__media") html += '<td class="left">'+escapeHtml(row.media)+'</td>';
-      else if(c.id==="__campaign") html += '<td class="left">'+escapeHtml(row.campaign)+'</td>';
-      else if(c.id==="__adgroup") html += '<td class="left">'+escapeHtml(row.adgroup)+'</td>';
-      else if(c.id==="__creative") html += '<td class="left">'+escapeHtml(row.label)+'</td>';
+      if(c.id==="__media") html += '<td class="left" title="'+escapeHtml(row.media)+'"'+creativeFlatCellStyle(c.id)+'>'+escapeHtml(row.media)+'</td>';
+      else if(c.id==="__campaign") html += '<td class="left" title="'+escapeHtml(row.campaign)+'"'+creativeFlatCellStyle(c.id)+'>'+escapeHtml(row.campaign)+'</td>';
+      else if(c.id==="__adgroup") html += '<td class="left" title="'+escapeHtml(row.adgroup)+'"'+creativeFlatCellStyle(c.id)+'>'+escapeHtml(row.adgroup)+'</td>';
+      else if(c.id==="__creative") html += '<td class="left" title="'+escapeHtml(row.label)+'"'+creativeFlatCellStyle(c.id)+'>'+escapeHtml(row.label)+'</td>';
       else { const m=METRIC_BY_ID[c.id]; html += '<td>'+fmtMetric(m, m.get(row.d), false)+'</td>'; }
     });
     html += '</tr>';
