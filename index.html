@@ -2103,12 +2103,24 @@ function renderDonut(canvasId, labels, data){
   const textColor = themeVar("--text","#1a1a1a");
   const total = data.reduce((a,b)=>a+(b||0),0);
   const lineColor = themeVar("--text-muted","#888");
+  // 도넛 아래 범례(legend)와 라벨이 겹치지 않도록, 라벨이 "정확히 아래쪽"을 향하는 각도는
+  // 살짝 옆으로 밀어냅니다. 선의 시작점(조각 가장자리)은 그대로 두고 라벨 위치만 조정합니다.
+  function avoidBottomAngle(mid){
+    const twoPi = Math.PI*2;
+    const norm = ((mid % twoPi)+twoPi) % twoPi;
+    const lo = Math.PI*0.36, hi = Math.PI*0.64; // 약 65°~115°(정확히 아래쪽 6시 방향 부근)
+    if(norm > lo && norm < hi){
+      return (norm-lo < hi-norm) ? lo : hi;
+    }
+    return mid;
+  }
   const donutValueLabelPlugin = {
     id:"donutValueLabel",
     afterDraw(chart){
       const {ctx} = chart;
       const meta = chart.getDatasetMeta(0);
       if(!total) return;
+      const chartArea = chart.chartArea;
       const items = [];
       meta.data.forEach((arc,i)=>{
         const val = data[i];
@@ -2117,12 +2129,16 @@ function renderDonut(canvasId, labels, data){
         if(pct < 0.02) return;
         const props = arc.getProps(["startAngle","endAngle","outerRadius","x","y"], true);
         const mid = (props.startAngle+props.endAngle)/2;
-        const cos = Math.cos(mid), sin = Math.sin(mid);
-        const isRight = cos >= 0;
-        const anchorX = props.x + cos*(props.outerRadius+2);
-        const anchorY = props.y + sin*(props.outerRadius+2);
-        const labelX = props.x + cos*(props.outerRadius+32) + (isRight ? 8 : -8);
-        const labelY = props.y + sin*(props.outerRadius+32);
+        const labelMid = avoidBottomAngle(mid);
+        const anchorX = props.x + Math.cos(mid)*(props.outerRadius+2);
+        const anchorY = props.y + Math.sin(mid)*(props.outerRadius+2);
+        const lc = Math.cos(labelMid), ls = Math.sin(labelMid);
+        const isRight = lc >= 0;
+        let labelX = props.x + lc*(props.outerRadius+32) + (isRight ? 8 : -8);
+        let labelY = props.y + ls*(props.outerRadius+32);
+        if(chartArea && labelY > chartArea.bottom-14){
+          labelY = chartArea.bottom-14;
+        }
         items.push({ pct, val, isRight, anchorX, anchorY, labelX, labelY });
       });
       [true,false].forEach(side=>{
@@ -2130,6 +2146,14 @@ function renderDonut(canvasId, labels, data){
         const minGap = 26;
         for(let i=1;i<list.length;i++){
           if(list[i].labelY - list[i-1].labelY < minGap) list[i].labelY = list[i-1].labelY + minGap;
+        }
+        if(chartArea){
+          for(let i=list.length-1;i>0;i--){
+            if(list[i].labelY > chartArea.bottom-14){
+              list[i].labelY = chartArea.bottom-14;
+              if(list[i-1].labelY > list[i].labelY - minGap) list[i-1].labelY = list[i].labelY - minGap;
+            }
+          }
         }
       });
       ctx.save();
