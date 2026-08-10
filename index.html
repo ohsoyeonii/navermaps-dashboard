@@ -274,6 +274,7 @@ input[type=file]{display:none;}
 .mini-chart-canvas-wrap{height:210px;}
 
 .table-scroll{overflow-x:auto;position:relative;border:1px solid var(--border);border-radius:12px;}
+#creativeTableWrap{max-height:620px;overflow-y:auto;}
 table.data-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;min-width:900px;font-weight:400;}
 table.data-table th{background:var(--th-bg);cursor:pointer;padding:8px 9px;text-align:right;white-space:nowrap;font-weight:500;color:var(--text-muted);position:sticky;top:0;z-index:13;user-select:none;}
 table.data-table th.left,table.data-table td.left{text-align:left;}
@@ -320,10 +321,10 @@ table.perf-table td{padding:12px 16px;font-size:13px;}
 .top10-name{font-weight:600;font-size:12.5px;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .top10-sub{font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .top10-roas{font-size:12px;font-weight:700;color:var(--primary);}
-.top10-metrics{display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;margin-top:4px;border-top:1px solid var(--border);padding-top:6px;}
-.t10-metric{display:flex;flex-direction:column;font-size:10.5px;}
-.t10-metric .t10-label{color:var(--text-muted);}
-.t10-metric .t10-val{font-weight:600;font-size:11.5px;}
+.top10-metrics{display:flex;flex-direction:column;gap:5px;margin-top:6px;border-top:1px solid var(--border);padding-top:8px;}
+.t10-metric{display:flex;flex-direction:row;align-items:baseline;justify-content:space-between;gap:8px;font-size:11.5px;}
+.t10-metric .t10-label{color:var(--text-muted);white-space:nowrap;}
+.t10-metric .t10-val{font-weight:600;font-size:12px;white-space:nowrap;}
 .empty-hint{color:var(--text-muted);font-size:13px;padding:20px 0;text-align:center;}
 
 .history-status{font-size:11.5px;color:var(--text-muted);margin-right:4px;}
@@ -626,16 +627,13 @@ th.col-drop-after{box-shadow:inset -3px 0 0 0 var(--primary);}
               <div class="sh-actions">
                 <span class="creative-media-status" id="creativeMediaStatus"></span>
                 <button class="btn small" id="refreshCreativeMediaBtn">🔄 이미지 새로고침</button>
-                <button class="btn small" id="uploadCreativeMediaBtn">📁 파일로 업로드</button>
-                <input type="file" id="creativeMediaFileInput" accept=".csv,.xlsx,.xls" hidden>
               </div>
             </div>
-            <div id="creativeMediaBanner"></div>
             <div class="creative-top10-grid" id="creativeTop10Grid"></div>
           </div>
 
           <div class="section-card">
-            <div class="section-header">🔑 SA 키워드 (키워드 순)</div>
+            <div class="section-header">🔑 고효율 키워드 TOP 10 (구매 기준)</div>
             <div class="table-scroll" id="creativeTop10SAWrap"></div>
           </div>
 
@@ -811,7 +809,12 @@ const App = {
   records: [],
   meta: { title:"", totalBudget:940000000, startDate:null, totalDays:null, reportDate:null, fileName:"", loadedAt:null },
   dateMin:null, dateMax:null,
-  filters:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, os:"all", campaign:"all", dateFrom:null, dateTo:null },
+  filtersByView:{
+    summary:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, os:"all", campaign:"all", dateFrom:null, dateTo:null },
+    media:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, os:"all", campaign:"all", dateFrom:null, dateTo:null },
+    creative:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, os:"all", campaign:"all", dateFrom:null, dateTo:null },
+    history:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, os:"all", campaign:"all", dateFrom:null, dateTo:null }
+  },
   filteredRecords:[],
   activeView:"summary",
   kpiAbbrev:false,
@@ -959,8 +962,10 @@ function distinctValues(records, key){
   return [...set];
 }
 
+function currentFilters(){ return App.filtersByView[App.activeView]; }
+
 function applyFilters(){
-  const f = App.filters;
+  const f = currentFilters();
   App.filteredRecords = App.records.filter(r=>{
     if(f.purposeType!=="all" && r.purposeType!==f.purposeType) return false;
     if(!f.mediaSet.all && !f.mediaSet.set.has(r.mediaRaw)) return false;
@@ -1149,33 +1154,35 @@ function confirmHighlightedOption(key){
 }
 
 function renderFilterBar(){
+  const f = currentFilters();
   const purposeOpts = [{value:"all",label:"전체"},{value:"SA",label:"SA"},{value:"DA",label:"DA"}];
-  fillCustomSelect("purpose", purposeOpts, App.filters.purposeType);
+  fillCustomSelect("purpose", purposeOpts, f.purposeType);
 
   const mediaVals = distinctValues(App.records,"mediaRaw").sort();
   const mediaOpts = mediaVals.map(v=>({value:v,label:mediaLabel(v)}));
-  reconcileMultiFilter(App.filters.mediaSet, mediaVals);
-  fillMultiSelect("media", mediaOpts, App.filters.mediaSet, "전체", onMediaFilterChange);
+  reconcileMultiFilter(f.mediaSet, mediaVals);
+  fillMultiSelect("media", mediaOpts, f.mediaSet, "전체", onMediaFilterChange);
 
   const osOpts = [{value:"all",label:"전체"}].concat(distinctValues(App.records,"os").sort().map(v=>({value:v,label:OS_LABEL_OVERRIDE[v]||v})));
-  fillCustomSelect("os", osOpts, App.filters.os);
+  fillCustomSelect("os", osOpts, f.os);
 
   renderCampaignFilterOptions();
   updateDateRangeLabel();
 }
 
 function onMediaFilterChange(){
-  App.filters.campaign = "all";
+  currentFilters().campaign = "all";
   renderCampaignFilterOptions();
   onFiltersChanged();
 }
 
 function renderCampaignFilterOptions(){
-  const pool = App.filters.mediaSet.all ? App.records : App.records.filter(r=>App.filters.mediaSet.set.has(r.mediaRaw));
+  const f = currentFilters();
+  const pool = f.mediaSet.all ? App.records : App.records.filter(r=>f.mediaSet.set.has(r.mediaRaw));
   const campaigns = distinctValues(pool,"campaign").sort();
-  if(App.filters.campaign!=="all" && campaigns.indexOf(App.filters.campaign)<0) App.filters.campaign="all";
+  if(f.campaign!=="all" && campaigns.indexOf(f.campaign)<0) f.campaign="all";
   const opts = [{value:"all",label:"전체"}].concat(campaigns.map(v=>({value:v,label:v})));
-  fillCustomSelect("campaign", opts, App.filters.campaign);
+  fillCustomSelect("campaign", opts, f.campaign);
 }
 
 function toISODate(d){ return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); }
@@ -1185,15 +1192,17 @@ function sameDate(a,b){ return a && b && a.getFullYear()===b.getFullYear() && a.
 /* ===================== Calendar popup ===================== */
 
 function updateDateRangeLabel(){
-  const from = App.filters.dateFrom, to = App.filters.dateTo;
+  const f = currentFilters();
+  const from = f.dateFrom, to = f.dateTo;
   document.getElementById("dateRangeLabel").textContent = (from && to) ? (toISODate(from)+" ~ "+toISODate(to)) : "기간 선택";
 }
 
 function openCalendarPopup(){
-  const start = App.filters.dateFrom || App.dateMin;
+  const f = currentFilters();
+  const start = f.dateFrom || App.dateMin;
   App.cal.open = true;
-  App.cal.selStart = App.filters.dateFrom || null;
-  App.cal.selEnd = App.filters.dateTo || null;
+  App.cal.selStart = f.dateFrom || null;
+  App.cal.selEnd = f.dateTo || null;
   App.cal.viewYear = start.getFullYear();
   App.cal.viewMonth = start.getMonth();
   document.getElementById("calendarPopup").hidden = false;
@@ -1265,14 +1274,16 @@ function renderCalendarPopup(){
   });
   document.getElementById("calReset").addEventListener("click", (e)=>{
     e.stopPropagation();
-    App.filters.dateFrom = App.dateMin; App.filters.dateTo = App.dateMax;
+    const f = currentFilters();
+    f.dateFrom = App.dateMin; f.dateTo = App.dateMax;
     updateDateRangeLabel(); closeCalendarPopup(); onFiltersChanged();
   });
   document.getElementById("calConfirm").addEventListener("click", (e)=>{
     e.stopPropagation();
     if(App.cal.selStart){
-      App.filters.dateFrom = App.cal.selStart;
-      App.filters.dateTo = App.cal.selEnd || App.cal.selStart;
+      const f = currentFilters();
+      f.dateFrom = App.cal.selStart;
+      f.dateTo = App.cal.selEnd || App.cal.selStart;
       updateDateRangeLabel(); closeCalendarPopup(); onFiltersChanged();
     } else {
       closeCalendarPopup();
@@ -1934,14 +1945,14 @@ function renderMediaTrendChart(){
 }
 
 function mediaCampaignColumns(){
-  const leadCols = [{id:"__campaign", label:"캠페인", alignLeft:true}, {id:"__media", label:"매체", alignLeft:false}];
+  const leadCols = [{id:"__campaign", label:"캠페인", alignLeft:true}];
   const metricCols = CAMPAIGN_PERF_COLUMNS.filter(id=>App.mediaView.visibleCols.has(id)).map(id=>({id, label:campaignPerfLabel(id), alignLeft:false}));
   return leadCols.concat(metricCols);
 }
 
 function renderMediaCampaignTable(){
   const source = mediaCampaignSourceRecords();
-  const gridState = getGridState("mediaCampaign", 2);
+  const gridState = getGridState("mediaCampaign", 1);
   const cols = applyColumnOrder(mediaCampaignColumns(), gridState);
   const totalD = derive(aggregate(source));
 
@@ -2089,7 +2100,7 @@ function renderDonut(canvasId, labels, data){
   const colorMap = getMediaColorMap();
   const textColor = themeVar("--text","#1a1a1a");
   const total = data.reduce((a,b)=>a+(b||0),0);
-  const lineColor = themeVar("--border","#ccc");
+  const lineColor = themeVar("--text-muted","#888");
   const donutValueLabelPlugin = {
     id:"donutValueLabel",
     afterDraw(chart){
@@ -2123,7 +2134,7 @@ function renderDonut(canvasId, labels, data){
       items.forEach(it=>{
         const labelX = it.bendX + (it.isRight ? 12 : -12);
         ctx.strokeStyle = lineColor;
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1.25;
         ctx.beginPath();
         ctx.moveTo(it.anchorX, it.anchorY);
         ctx.lineTo(it.bendX, it.labelY);
@@ -2232,22 +2243,7 @@ function renderCreativeTop10DA(flatRows){
 
   const statusEl = document.getElementById("creativeMediaStatus");
   statusEl.textContent = App.creativeMediaMapStatus==="loading" ? "이미지 불러오는 중..." :
-    App.creativeMediaMapStatus==="error" ? "이미지 로드 실패 - '파일로 업로드'를 이용해주세요" : "";
-
-  const bannerEl = document.getElementById("creativeMediaBanner");
-  if(App.creativeMediaMapStatus==="error"){
-    bannerEl.innerHTML =
-      '<div class="dropzone mini" id="creativeMediaDropzone">'+
-        '<div class="big-ico">🖼️</div>'+
-        '<h2>소재 썸네일 이미지를 연결해주세요</h2>'+
-        '<p>썸네일 자동 연동에 실패했습니다. "이미지 새로고침"으로 다시 시도하시거나,<br>'+
-        '구글시트에서 소재-이미지 매핑 시트를 <b>파일 &gt; 다운로드 &gt; CSV</b>로 저장한 뒤, 아래 버튼으로 올려주세요.</p>'+
-        '<button class="btn primary" style="margin-top:14px;" id="creativeMediaDropzoneBtn" type="button">📁 파일 선택해서 업로드</button>'+
-      '</div>';
-    document.getElementById("creativeMediaDropzoneBtn").addEventListener("click", ()=>document.getElementById("creativeMediaFileInput").click());
-  } else {
-    bannerEl.innerHTML = "";
-  }
+    App.creativeMediaMapStatus==="error" ? "이미지 로드 실패 - '이미지 새로고침'을 눌러주세요" : "";
 
   document.getElementById("creativeTop10Grid").innerHTML = top10.length ? top10.map((r,i)=>{
     const mm = lookupCreativeMedia(r.mediaRaw, r.label);
@@ -2262,33 +2258,42 @@ function renderCreativeTop10DA(flatRows){
       '<div class="top10-rank">#'+(i+1)+'</div>'+
       thumbHtml+
       '<div class="top10-name" title="'+escapeHtml(r.label)+'">'+escapeHtml(r.label)+'</div>'+
-      '<div class="top10-sub">'+escapeHtml(r.media)+' · '+escapeHtml(r.campaign)+'</div>'+
+      '<div class="top10-sub">'+escapeHtml(r.media)+' · '+escapeHtml(r.campaign)+' · '+escapeHtml(r.adgroup)+'</div>'+
       '<div class="top10-roas">ROAS '+fmtMetric(rm, rm.get(r.d), false)+'</div>'+
       '<div class="top10-metrics">'+metricsHtml+'</div>'+
     '</div>';
   }).join("") : '<div class="empty-hint">표시할 소재가 없습니다.</div>';
 }
 
+function selectTop10Keywords(flatRows){
+  const withPurchase = flatRows.filter(r=>r.d.purchase>0).sort((a,b)=>b.d.purchase-a.d.purchase);
+  if(withPurchase.length>=10) return withPurchase.slice(0,10);
+  const usedKeys = new Set(withPurchase.map(r=>r.key));
+  const cpaVal = r=>{ const v=METRIC_BY_ID.cpaIntegrated.get(r.d); return (v===null||v===undefined||!isFinite(v))?Infinity:v; };
+  const rest = flatRows.filter(r=>!usedKeys.has(r.key)).sort((a,b)=>cpaVal(a)-cpaVal(b));
+  return withPurchase.concat(rest.slice(0, 10-withPurchase.length));
+}
+
 function renderCreativeTop10SA(flatRows){
-  const sorted = flatRows.slice().sort((a,b)=>String(a.label).localeCompare(String(b.label)));
+  const top10 = selectTop10Keywords(flatRows);
   const agg = newAggBucket();
-  sorted.forEach(r=>{ Object.keys(agg).forEach(k=>{ if(typeof r.d[k]==="number") agg[k]+=r.d[k]||0; }); });
+  top10.forEach(r=>{ Object.keys(agg).forEach(k=>{ if(typeof r.d[k]==="number") agg[k]+=r.d[k]||0; }); });
   const totalDerived = derive(agg);
 
   let html = '<table class="data-table" id="creativeTop10SATable"><thead><tr>'+
-    '<th class="left">매체</th><th class="left">캠페인</th><th class="left">광고그룹</th><th class="left">키워드</th>'+
+    '<th>#</th><th class="left">매체</th><th class="left">캠페인</th><th class="left">광고그룹</th><th class="left">키워드</th>'+
     CREATIVE_SA_COLUMNS.map(c=>'<th>'+escapeHtml(c.label)+'</th>').join("")+
     '</tr></thead><tbody>';
-  html += '<tr class="total-row"><td class="left">Total</td><td class="left"></td><td class="left"></td><td class="left"></td>'+
+  html += '<tr class="total-row"><td></td><td class="left">Total</td><td class="left"></td><td class="left"></td><td class="left"></td>'+
     CREATIVE_SA_COLUMNS.map(c=>{ const m=METRIC_BY_ID[c.id]; return '<td>'+fmtMetric(m, m.get(totalDerived), false)+'</td>'; }).join("")+
     '</tr>';
-  sorted.forEach(r=>{
-    html += '<tr><td class="left">'+escapeHtml(r.media)+'</td><td class="left">'+escapeHtml(r.campaign)+'</td><td class="left">'+escapeHtml(r.adgroup)+'</td><td class="left">'+escapeHtml(r.label)+'</td>'+
+  top10.forEach((r,i)=>{
+    html += '<tr><td>'+(i+1)+'</td><td class="left">'+escapeHtml(r.media)+'</td><td class="left">'+escapeHtml(r.campaign)+'</td><td class="left">'+escapeHtml(r.adgroup)+'</td><td class="left">'+escapeHtml(r.label)+'</td>'+
       CREATIVE_SA_COLUMNS.map(c=>{ const m=METRIC_BY_ID[c.id]; return '<td>'+fmtMetric(m, m.get(r.d), false)+'</td>'; }).join("")+
       '</tr>';
   });
   html += '</tbody></table>';
-  document.getElementById("creativeTop10SAWrap").innerHTML = sorted.length ? html : '<div class="empty-hint">표시할 SA 키워드가 없습니다.</div>';
+  document.getElementById("creativeTop10SAWrap").innerHTML = top10.length ? html : '<div class="empty-hint">표시할 키워드가 없습니다.</div>';
 }
 
 const CREATIVE_FLAT_LEAD_COLS = [
@@ -2503,10 +2508,11 @@ function renderCreativeTree(flatRows, totalD){
 /* ===================== History view ===================== */
 
 function historySourceRecords(){
+  const f = currentFilters();
   let rows = App.historyRecords;
-  if(!App.filters.mediaSet.all) rows = rows.filter(r=>App.filters.mediaSet.set.has(r.mediaRaw));
-  if(App.filters.dateFrom) rows = rows.filter(r=>!r.date || r.date>=App.filters.dateFrom);
-  if(App.filters.dateTo) rows = rows.filter(r=>!r.date || r.date<=App.filters.dateTo);
+  if(!f.mediaSet.all) rows = rows.filter(r=>f.mediaSet.set.has(r.mediaRaw));
+  if(f.dateFrom) rows = rows.filter(r=>!r.date || r.date>=f.dateFrom);
+  if(f.dateTo) rows = rows.filter(r=>!r.date || r.date<=f.dateTo);
   return rows;
 }
 
@@ -2569,6 +2575,8 @@ function switchView(view){
   applyFilterBarVisibility(view);
   const navLabelEl = document.querySelector('.nav-item[data-view="'+view+'"] .label-text');
   document.getElementById("filterBarTabName").textContent = "★ " + (navLabelEl ? navLabelEl.textContent : "");
+  renderFilterBar();
+  applyFilters();
   renderActiveView();
 }
 
@@ -2626,7 +2634,12 @@ function applyParsedData(parsed){
   App.meta = parsed.meta;
   App.dateMin = parsed.dateMin;
   App.dateMax = parsed.dateMax;
-  App.filters = { purposeType:"all", mediaSet:{all:true,set:new Set()}, os:"all", campaign:"all", dateFrom:parsed.dateMin, dateTo:parsed.dateMax };
+  App.filtersByView = {
+    summary:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, os:"all", campaign:"all", dateFrom:parsed.dateMin, dateTo:parsed.dateMax },
+    media:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, os:"all", campaign:"all", dateFrom:parsed.dateMin, dateTo:parsed.dateMax },
+    creative:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, os:"all", campaign:"all", dateFrom:parsed.dateMin, dateTo:parsed.dateMax },
+    history:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, os:"all", campaign:"all", dateFrom:parsed.dateMin, dateTo:parsed.dateMax }
+  };
   App.cardMetricOverride = {};
   App.expandedGroups = { creative:new Set() };
   App.creativeTypeFilter = null;
@@ -2640,8 +2653,6 @@ function applyParsedData(parsed){
   document.getElementById("emptyState").style.display = "none";
   document.getElementById("appBody").style.display = "block";
   updateStatusBar();
-  renderFilterBar();
-  applyFilters();
   switchView(App.activeView || "summary");
 }
 
@@ -2697,9 +2708,9 @@ function bindColMgrToggle(btnId, popupId){
 }
 
 function initFilterBar(){
-  document.getElementById("f-purpose").addEventListener("change", e=>{ App.filters.purposeType=e.target.value; onFiltersChanged(); });
-  document.getElementById("f-os").addEventListener("change", e=>{ App.filters.os=e.target.value; onFiltersChanged(); });
-  document.getElementById("f-campaign").addEventListener("change", e=>{ App.filters.campaign=e.target.value; onFiltersChanged(); });
+  document.getElementById("f-purpose").addEventListener("change", e=>{ currentFilters().purposeType=e.target.value; onFiltersChanged(); });
+  document.getElementById("f-os").addEventListener("change", e=>{ currentFilters().os=e.target.value; onFiltersChanged(); });
+  document.getElementById("f-campaign").addEventListener("change", e=>{ currentFilters().campaign=e.target.value; onFiltersChanged(); });
   document.querySelectorAll("[data-abbrev]").forEach(btn=>{
     btn.addEventListener("click", ()=>{
       App.kpiAbbrev = btn.dataset.abbrev==="1";
@@ -2724,11 +2735,6 @@ function initFilterBar(){
   document.getElementById("calendarPopup").addEventListener("click", e=>e.stopPropagation());
   document.getElementById("refreshCreativeMediaBtn").addEventListener("click", loadCreativeMediaMap);
   document.getElementById("refreshHistoryBtn").addEventListener("click", loadHistoryData);
-  document.getElementById("uploadCreativeMediaBtn").addEventListener("click", ()=>document.getElementById("creativeMediaFileInput").click());
-  document.getElementById("creativeMediaFileInput").addEventListener("change", e=>{
-    if(e.target.files[0]) handleCreativeMediaFileUpload(e.target.files[0]);
-    e.target.value = "";
-  });
   registerCustomSelect("purpose", "f-purpose", "purposeSelectWrap", "f-purpose-trigger", "f-purpose-panel");
   registerCustomSelect("media", "f-media", "mediaSelectWrap", "f-media-trigger", "f-media-panel", true);
   registerCustomSelect("os", "f-os", "osSelectWrap", "f-os-trigger", "f-os-panel");
@@ -2804,22 +2810,6 @@ function buildCreativeMediaMap(objs){
   return map;
 }
 
-function readFileAsRows(file){
-  const isCsv = /\.csv$/i.test(file.name);
-  return new Promise((resolve,reject)=>{
-    const reader = new FileReader();
-    reader.onload = ()=>{
-      try{
-        const wb = isCsv ? XLSX.read(reader.result, {type:"string"}) : XLSX.read(reader.result, {type:"array"});
-        const sheet = wb.Sheets[wb.SheetNames[0]];
-        resolve(XLSX.utils.sheet_to_json(sheet, {header:1, defval:""}));
-      } catch(e){ reject(e); }
-    };
-    reader.onerror = ()=>reject(reader.error);
-    if(isCsv) reader.readAsText(file, "UTF-8"); else reader.readAsArrayBuffer(file);
-  });
-}
-
 async function loadCreativeMediaMap(){
   App.creativeMediaMapStatus = "loading";
   if(App.activeView==="creative") renderCreativeView();
@@ -2831,20 +2821,6 @@ async function loadCreativeMediaMap(){
     App.creativeMediaMapStatus = "loaded";
   } catch(e){
     console.error("소재 이미지 매핑 로드 실패:", e);
-    App.creativeMediaMapStatus = "error";
-  }
-  if(App.activeView==="creative") renderCreativeView();
-}
-
-async function handleCreativeMediaFileUpload(file){
-  App.creativeMediaMapStatus = "loading";
-  if(App.activeView==="creative") renderCreativeView();
-  try{
-    const rows = await readFileAsRows(file);
-    App.creativeMediaMap = buildCreativeMediaMap(csvRowsToIndexedObjects(rows));
-    App.creativeMediaMapStatus = "loaded";
-  } catch(e){
-    console.error("소재 이미지 매핑 파일 업로드 실패:", e);
     App.creativeMediaMapStatus = "error";
   }
   if(App.activeView==="creative") renderCreativeView();
