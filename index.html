@@ -154,7 +154,7 @@ input[type=file]{display:none;}
 
 .page-title{display:flex;align-items:center;gap:9px;font-size:20px;font-weight:600;margin:4px 0 14px;}
 
-.filter-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;background:var(--card-bg);border-radius:14px;padding:14px 18px;box-shadow:var(--shadow);position:sticky;top:18px;z-index:25;margin-bottom:16px;}
+.filter-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;background:var(--card-bg);border-radius:14px;padding:14px 18px;box-shadow:var(--shadow);position:sticky;top:18px;z-index:45;margin-bottom:16px;}
 .filter-bar .filter-field[hidden]{display:none;}
 .filter-bar-tabname{display:flex;align-items:center;gap:6px;font-size:15px;font-weight:600;color:var(--primary);white-space:nowrap;align-self:center;padding-right:14px;margin-right:2px;border-right:1px solid var(--border);}
 .filter-field{display:flex;flex-direction:column;gap:5px;position:relative;}
@@ -281,8 +281,6 @@ table.data-table th .arrow{margin-left:3px;opacity:.6;}
 table.data-table td{padding:6px 9px;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;font-weight:400;}
 table.data-table tr.total-row td{font-weight:600;background:var(--totalrow-bg-solid);position:sticky;top:33px;z-index:11;}
 table.perf-table tr.total-row td{background:var(--totalrow-bg-solid);}
-.total-row-outline-sticky{position:sticky;left:0;top:33px;height:0;overflow:visible;z-index:20;}
-.total-row-outline{position:absolute;top:0;left:0;pointer-events:none;border:1.5px solid var(--primary);border-radius:10px;box-sizing:border-box;}
 .freeze-edge-left{box-shadow:2px 0 6px rgba(0,0,0,0.08);}
 table.data-table tr.dim-row td{opacity:.45;}
 table.data-table tr.group-row{cursor:pointer;background:var(--th-bg);}
@@ -346,10 +344,6 @@ table.perf-table td{padding:12px 16px;font-size:13px;}
 .dropzone.mini h2{font-size:15px;}
 .dropzone.mini p{font-size:12px;line-height:1.6;}
 
-#dropOverlay{position:fixed;inset:0;background:rgba(16,185,129,.14);backdrop-filter:blur(2px);z-index:999;display:none;align-items:center;justify-content:center;}
-#dropOverlay.show{display:flex;}
-#dropOverlay .box{background:var(--card-bg);border:3px dashed var(--primary);border-radius:20px;padding:56px 76px;font-size:18px;font-weight:600;color:var(--primary);}
-
 .error-banner{background:var(--error-soft);border:1px solid var(--error);color:var(--error);border-radius:10px;padding:12px 16px;font-size:12.5px;margin-bottom:14px;white-space:pre-line;font-weight:400;}
 .spinner-wrap{display:flex;align-items:center;gap:10px;color:var(--text-muted);font-size:12.5px;padding:12px 0;}
 .spinner{width:16px;height:16px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;}
@@ -368,7 +362,7 @@ table.perf-table td{padding:12px 16px;font-size:13px;}
 .colmgr-popup[hidden]{display:none;}
 .colmgr-item{display:flex;align-items:center;gap:8px;padding:5px 6px;font-size:12px;font-weight:400;border-radius:6px;}
 .colmgr-item:hover{background:var(--bg);}
-.freeze-handle-sticky{position:sticky;left:0;top:0;height:0;overflow:visible;z-index:40;}
+.freeze-handle-sticky{position:sticky;left:0;top:0;height:0;width:0;overflow:visible;z-index:40;}
 .freeze-handle{position:absolute;top:0;left:0;width:16px;cursor:col-resize;display:flex;flex-direction:column;align-items:center;}
 .freeze-handle::after{content:"";position:absolute;left:7px;top:0;bottom:0;width:1.5px;background:var(--border);}
 .freeze-handle-grip{width:16px;height:20px;border-radius:6px;background:var(--primary);display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(3,1fr);gap:2px;place-items:center;box-shadow:0 1px 4px rgba(0,0,0,0.2);flex:none;position:relative;z-index:1;}
@@ -400,8 +394,6 @@ th.col-drop-after{box-shadow:inset -3px 0 0 0 var(--primary);}
 </head>
 <body>
 
-<div id="dropOverlay"><div class="box">📥 여기에 엑셀 파일을 놓으세요</div></div>
-
 <div class="app-shell">
   <aside class="sidebar" id="sidebar">
     <div class="brand">
@@ -422,27 +414,26 @@ th.col-drop-after{box-shadow:inset -3px 0 0 0 var(--primary);}
       <div class="nav-item" data-view="history"><span class="ico">★</span><span class="label-text">히스토리</span></div>
     </nav>
     <div class="nav-spacer"></div>
-    <div class="nav-foot label-text">데이터는 브라우저 안에서만<br>처리되며 외부로 전송되지 않습니다.</div>
+    <div class="nav-foot label-text">데이터는 연결된 구글 시트에서<br>자동으로 불러옵니다.</div>
   </aside>
 
   <main class="main">
     <div class="topwrap">
 
       <div id="emptyState" class="empty-state">
-        <div class="dropzone" id="dropzone">
+        <div class="dropzone" style="cursor:default;">
           <div class="big-ico">📊</div>
-          <h2>리포트 엑셀을 올려주세요</h2>
-          <p>드래그&amp;드롭 하거나 클릭해서 파일을 선택하세요.<br>「통합RAW」 시트가 포함된 데일리 리포트 (.xlsx)</p>
+          <h2 id="loadingStateTitle">구글 시트에서 데이터를 불러오는 중...</h2>
+          <p id="loadingStateDesc">잠시만 기다려주세요.</p>
+          <button class="btn primary" id="retryMainLoadBtn" style="margin-top:14px;display:none;" type="button">🔄 다시 시도</button>
         </div>
-        <div id="emptyError"></div>
       </div>
 
       <div id="appBody" style="display:none;">
         <div class="statusbar">
-          <div id="statusText">현재 데이터 없음</div>
+          <div id="statusText">업데이트: -</div>
           <div class="status-actions">
-            <label class="btn small" for="fileInputReplace">📁 파일 교체</label>
-            <button class="btn small danger" id="clearDataBtn">데이터 비우기</button>
+            <button class="btn small" id="refreshMainDataBtn">🔄 새로고침</button>
           </div>
         </div>
 
@@ -486,6 +477,14 @@ th.col-drop-after{box-shadow:inset -3px 0 0 0 var(--primary);}
             <label>기간</label>
             <button class="btn date-range-btn" id="dateRangeBtn">📅 <span id="dateRangeLabel">기간 선택</span> ▾</button>
             <div class="calendar-popup" id="calendarPopup" hidden></div>
+          </div>
+          <div class="filter-field" data-filter-field="sort">
+            <label>정렬</label>
+            <div class="custom-select" id="historySortSelectWrap">
+              <select id="f-historySort" class="native-select-hidden" tabindex="-1" aria-hidden="true"></select>
+              <button type="button" class="cs-trigger" id="f-historySort-trigger"><span class="cs-trigger-label">최신순</span><span class="cs-trigger-arrow">▾</span></button>
+              <div class="cs-panel" id="f-historySort-panel" role="listbox"></div>
+            </div>
           </div>
         </div>
 
@@ -623,7 +622,7 @@ th.col-drop-after{box-shadow:inset -3px 0 0 0 var(--primary);}
         <!-- ================= CREATIVE VIEW ================= -->
         <section class="view" id="view-creative">
           <div class="section-card">
-            <div class="section-header">🏆 고효율 소재 TOP10 (ROAS 기준)
+            <div class="section-header">🏆 고효율 소재 TOP10 (DA · ROAS 기준)
               <div class="sh-actions">
                 <span class="creative-media-status" id="creativeMediaStatus"></span>
                 <button class="btn small" id="refreshCreativeMediaBtn">🔄 이미지 새로고침</button>
@@ -636,7 +635,12 @@ th.col-drop-after{box-shadow:inset -3px 0 0 0 var(--primary);}
           </div>
 
           <div class="section-card">
-            <div class="section-header">소재유형별 요약</div>
+            <div class="section-header">🔑 SA 키워드 (키워드 순)</div>
+            <div class="table-scroll" id="creativeTop10SAWrap"></div>
+          </div>
+
+          <div class="section-card">
+            <div class="section-header">소재 유형별 요약</div>
             <div class="table-scroll" id="creativeTypeTableWrap"></div>
           </div>
 
@@ -664,8 +668,6 @@ th.col-drop-after{box-shadow:inset -3px 0 0 0 var(--primary);}
               <div class="sh-actions">
                 <span class="history-status" id="historyLastUpdated"></span>
                 <button class="btn small" id="refreshHistoryBtn">🔄 새로고침</button>
-                <button class="btn small" id="uploadHistoryBtn">📁 파일로 업로드</button>
-                <input type="file" id="historyFileInput" accept=".csv,.xlsx,.xls" hidden>
               </div>
             </div>
             <div id="historyTimeline"></div>
@@ -677,8 +679,6 @@ th.col-drop-after{box-shadow:inset -3px 0 0 0 var(--primary);}
   </main>
 </div>
 
-<input type="file" id="fileInputReplace" accept=".xlsx,.xls">
-
 <script>
 (function(){
 "use strict";
@@ -688,8 +688,10 @@ th.col-drop-after{box-shadow:inset -3px 0 0 0 var(--primary);}
 const MEDIA_DISPLAY = { "Raddit":"Reddit" };
 function mediaLabel(raw){ return MEDIA_DISPLAY[raw] || raw || "-"; }
 
-// 외부 Google Sheet 연동: 소재 이미지 매핑 + 운영 히스토리.
+// 외부 Google Sheet 연동: 메인 리포트 원본 데이터 + 소재 이미지 매핑 + 운영 히스토리.
 // 시트: https://docs.google.com/spreadsheets/d/1mCNk14BX6WCyA5bJ1sE9qWlITVKtqtzFBHzwNJV-_CA
+// 메인 데이터는 이 시트의 첫 번째(맨 왼쪽) 탭을 그대로 사용합니다. 탭 이름이 바뀌어도 위치만 유지되면 계속 동작합니다.
+const MAIN_DATA_SHEET_URL = "https://docs.google.com/spreadsheets/d/1mCNk14BX6WCyA5bJ1sE9qWlITVKtqtzFBHzwNJV-_CA/gviz/tq?tqx=out:csv";
 const CREATIVE_MEDIA_SHEET_URL = "https://docs.google.com/spreadsheets/d/1mCNk14BX6WCyA5bJ1sE9qWlITVKtqtzFBHzwNJV-_CA/export?format=csv&gid=490740430";
 const HISTORY_SHEET_URL = "https://docs.google.com/spreadsheets/d/1mCNk14BX6WCyA5bJ1sE9qWlITVKtqtzFBHzwNJV-_CA/gviz/tq?tqx=out:csv&sheet=History";
 const KOREAN_MEDIA_TO_RAW = { "메타":"Meta", "틱톡":"Tiktok", "레딧":"Raddit", "구글":"Google", "애플":"Apple" };
@@ -825,89 +827,23 @@ const App = {
   creativeMediaMapStatus:"idle",
   historyRecords:[],
   historyStatus:"idle",
+  historySortOrder:"desc",
   historyLastUpdated:null,
   mediaRankMetric:"roas",
   charts:{},
   cal:{ open:false, viewYear:null, viewMonth:null, selStart:null, selEnd:null },
   campaignPerf:{ visibleCols:new Set(CAMPAIGN_PERF_COLUMNS), expandedMedia:new Set() },
-  mediaView:{ toggleMedia:{all:true,set:new Set()}, visibleCols:new Set(CAMPAIGN_PERF_COLUMNS) },
+  mediaView:{ toggleMedia:{all:true,set:new Set()}, visibleCols:new Set(CAMPAIGN_PERF_COLUMNS), expandedMedia:new Set() },
   _mediaColorMap:null,
-  grid:{}
+  grid:{},
+  mainDataStatus:"idle"
 };
 
-/* ===================== IndexedDB cache ===================== */
-const IDB_NAME="nplace-dashboard-db", IDB_STORE="files", IDB_KEY="current";
-function idbOpen(){
-  return new Promise((resolve,reject)=>{
-    const req = indexedDB.open(IDB_NAME,1);
-    req.onupgradeneeded = ()=>{ req.result.createObjectStore(IDB_STORE,{keyPath:"id"}); };
-    req.onsuccess = ()=>resolve(req.result);
-    req.onerror = ()=>reject(req.error);
-  });
-}
-async function idbSave(fileName, arrayBuffer){
-  try{
-    const db = await idbOpen();
-    await new Promise((resolve,reject)=>{
-      const tx = db.transaction(IDB_STORE,"readwrite");
-      tx.objectStore(IDB_STORE).put({id:IDB_KEY, fileName, savedAt:Date.now(), buffer:arrayBuffer});
-      tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
-    });
-  }catch(e){ console.warn("IndexedDB 저장 실패", e); }
-}
-async function idbLoad(){
-  try{
-    const db = await idbOpen();
-    return await new Promise((resolve,reject)=>{
-      const tx = db.transaction(IDB_STORE,"readonly");
-      const req = tx.objectStore(IDB_STORE).get(IDB_KEY);
-      req.onsuccess = ()=>resolve(req.result||null);
-      req.onerror = ()=>reject(req.error);
-    });
-  }catch(e){ console.warn("IndexedDB 로드 실패", e); return null; }
-}
-async function idbClear(){
-  try{
-    const db = await idbOpen();
-    await new Promise((resolve,reject)=>{
-      const tx = db.transaction(IDB_STORE,"readwrite");
-      tx.objectStore(IDB_STORE).delete(IDB_KEY);
-      tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
-    });
-  }catch(e){ console.warn("IndexedDB 삭제 실패", e); }
-}
+/* ===================== Excel parsing (파일 업로드 매핑/히스토리 보조 기능에서 사용) ===================== */
 
-/* ===================== Excel parsing ===================== */
-
-function findRawSheet(wb){
-  if(wb.Sheets["통합RAW"]) return "통합RAW";
-  for(const name of wb.SheetNames){
-    const ws = wb.Sheets[name];
-    if(!ws["!ref"]) continue;
-    const range = XLSX.utils.decode_range(ws["!ref"]);
-    const headerRange = {s:{r:range.s.r,c:range.s.c}, e:{r:range.s.r,c:range.e.c}};
-    const rows = XLSX.utils.sheet_to_json(ws,{header:1, range:headerRange, defval:null});
-    const headers = (rows[0]||[]).map(normHeader);
-    if(headers.includes("매체") && headers.includes("일자") && headers.includes("비용(Gross)")) return name;
-  }
-  return null;
-}
-
-function findSummarySheet(wb){
-  if(wb.Sheets["Summary(DA+SA)"]) return "Summary(DA+SA)";
-  return wb.SheetNames.find(n=>n.indexOf("Summary")>=0) || null;
-}
-
-function parseWorkbook(arrayBuffer, fileName){
-  const wb = XLSX.read(arrayBuffer, {type:"array", cellDates:true});
-  const rawName = findRawSheet(wb);
-  if(!rawName){
-    throw new Error("데이터 시트를 찾을 수 없습니다.\n'통합RAW' 시트가 없고, 헤더에 매체/일자/비용(Gross)이 모두 있는 시트도 찾지 못했습니다.");
-  }
-  const ws = wb.Sheets[rawName];
-  const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:null});
+function buildRecordsFromRows(rows){
   if(rows.length<2){
-    throw new Error("'"+rawName+"' 시트에 데이터 행이 없습니다.");
+    throw new Error("데이터 행이 없습니다.");
   }
   const headers = rows[0].map(normHeader);
   const idx = {};
@@ -915,7 +851,7 @@ function parseWorkbook(arrayBuffer, fileName){
 
   const missing = ["매체","일자","비용(Gross)"].filter(h=>idx[h]===undefined);
   if(missing.length){
-    throw new Error("'"+rawName+"' 시트에서 필수 헤더를 찾을 수 없습니다: "+missing.join(", "));
+    throw new Error("필수 헤더를 찾을 수 없습니다: "+missing.join(", "));
   }
 
   const records = [];
@@ -930,13 +866,14 @@ function parseWorkbook(arrayBuffer, fileName){
     const mo = idx["월"]!==undefined ? num(row[idx["월"]]) : null;
     const dy = idx["일"]!==undefined ? num(row[idx["일"]]) : null;
     let dateObj = null;
-    if(yr && mo && dy){
+    if(yr>=2000 && mo && dy){
       dateObj = new Date(yr, mo-1, dy);
     } else if(idx["일자"]!==undefined && row[idx["일자"]]){
       const v = row[idx["일자"]];
       if(v instanceof Date) dateObj = new Date(v.getUTCFullYear(), v.getUTCMonth(), v.getUTCDate());
       else { const d = new Date(v); if(!isNaN(d)) dateObj = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()); }
     }
+    if(dateObj && dateObj.getFullYear()<2000) dateObj = null;
     if(dateObj){
       if(!dateMin || dateObj<dateMin) dateMin = dateObj;
       if(!dateMax || dateObj>dateMax) dateMax = dateObj;
@@ -967,95 +904,7 @@ function parseWorkbook(arrayBuffer, fileName){
       revenue: idx["af_purchase_for_revenue"]!==undefined ? num(row[idx["af_purchase_for_revenue"]]) : 0
     });
   }
-
-  const meta = { title:"", totalBudget:940000000, startDate:null, totalDays:null, reportDate:null, fileName, loadedAt:Date.now() };
-  try{ parseSummaryMeta(wb, meta); }catch(e){ console.warn("Summary 메타 파싱 실패(폴백 사용)", e); }
-
-  if(!meta.startDate || !meta.totalDays){
-    meta.startDate = dateMin;
-    meta.totalDays = (dateMin && dateMax) ? Math.round((dateMax-dateMin)/86400000)+1 : null;
-  }
-  if(!meta.reportDate) meta.reportDate = dateMax;
-  if(!meta.title) meta.title = "광고 캠페인 인바운드 대시보드";
-
-  const totals = {
-    impressions:0,clicks:0,costGross:0,installs:0,tabVisit:0,step1:0,step2:0,purchase:0,revenue:0
-  };
-  const byMediaCheck = {};
-  records.forEach(r=>{
-    totals.impressions+=r.impressions; totals.clicks+=r.clicks; totals.costGross+=r.costGross;
-    totals.installs+=r.installs; totals.tabVisit+=r.tabVisit; totals.step1+=r.step1; totals.step2+=r.step2;
-    totals.purchase+=r.purchase; totals.revenue+=r.revenue;
-    if(!byMediaCheck[r.mediaDisplay]) byMediaCheck[r.mediaDisplay] = {impressions:0,clicks:0,costGross:0,installs:0,revenue:0};
-    const bm = byMediaCheck[r.mediaDisplay];
-    bm.impressions+=r.impressions; bm.clicks+=r.clicks; bm.costGross+=r.costGross; bm.installs+=r.installs; bm.revenue+=r.revenue;
-  });
-  console.log("[검증용 합계] 행 수:", records.length, totals);
-  console.table(byMediaCheck);
-
-  return { records, meta, dateMin, dateMax };
-}
-
-function parseSummaryMeta(wb, meta){
-  const sName = findSummarySheet(wb);
-  if(!sName) return;
-  const ws = wb.Sheets[sName];
-  const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:null});
-  const maxRow = Math.min(rows.length, 20);
-  const labelMatchers = {
-    "캠페인 총 예산": v=>{ meta.totalBudget = num(v); },
-    "전체 집행기간": v=>{ meta._periodStr = String(v); },
-    "보고일자": v=>{ meta.reportDate = toDateSafe(v); }
-  };
-  for(let r=0;r<maxRow;r++){
-    const row = rows[r]||[];
-    for(let c=0;c<row.length;c++){
-      const label = normHeader(row[c]);
-      if(!label) continue;
-      for(const key in labelMatchers){
-        if(label.indexOf(key)===0){
-          for(let c2=c+1;c2<row.length;c2++){
-            if(row[c2]!==null && row[c2]!==undefined && row[c2]!==""){
-              labelMatchers[key](row[c2]); break;
-            }
-          }
-        }
-      }
-    }
-  }
-  const knownLabels = ["캠페인 총 예산","전체 집행기간","보고일자","총 소진액","소진율","기간 진행율","잔여 예산","Media Summary"];
-  for(let r=0;r<maxRow;r++){
-    const row = rows[r]||[];
-    const c0 = row[0];
-    if(typeof c0==="string" && c0.trim().length>3){
-      const trimmed = c0.trim();
-      const isKnown = knownLabels.some(k=>trimmed.indexOf(k)===0);
-      if(!isKnown && (row[1]===null||row[1]===undefined||row[1]==="")){
-        meta.title = trimmed; break;
-      }
-    }
-  }
-  if(meta._periodStr){
-    const m = meta._periodStr.match(/(\d{1,2})\s*\/\s*(\d{1,2})\s*~\s*(\d{1,2})\s*\/\s*(\d{1,2})\s*\((\d+)\s*일\)/);
-    if(m){
-      const year = meta.reportDate ? meta.reportDate.getFullYear() : new Date().getFullYear();
-      meta.startDate = new Date(year, parseInt(m[1],10)-1, parseInt(m[2],10));
-      meta.totalDays = parseInt(m[5],10);
-    }
-  }
-}
-
-function toDateSafe(v){
-  if(v instanceof Date) return new Date(v.getUTCFullYear(), v.getUTCMonth(), v.getUTCDate());
-  if(typeof v==="number"){
-    const d = XLSX.SSF.parse_date_code(v);
-    if(d) return new Date(d.y, d.m-1, d.d);
-  }
-  if(typeof v==="string"){
-    const d = new Date(v);
-    if(!isNaN(d)) return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-  }
-  return null;
+  return { records, dateMin, dateMax };
 }
 
 /* ===================== Aggregation ===================== */
@@ -1694,7 +1543,7 @@ function renderCampaignPerfTable(){
     });
   }
 
-  let html = freezeHandleHTML("freezeHandle")+'<div class="total-row-outline-sticky"><div class="total-row-outline"></div></div>'+'<table class="data-table perf-table" id="campaignPerfTable"><thead><tr>';
+  let html = freezeHandleHTML("freezeHandle")+'<table class="data-table perf-table" id="campaignPerfTable"><thead><tr>';
   cols.forEach(c=>{
     const arrow = sortState.col===c.id ? (sortState.dir==="asc"?"▲":"▼") : "";
     html += '<th class="'+(c.alignLeft?"left":"")+'" data-sortcol="'+c.id+'" data-colid="'+c.id+'" style="min-width:'+campaignPerfColMinWidth(c.id)+'px">'+escapeHtml(c.label)+' <span class="arrow">'+arrow+'</span></th>';
@@ -1815,26 +1664,9 @@ function applyFreezeLayout(wrapId, tableId, handleId, state){
     });
   });
 
-  const handleSticky = document.getElementById(handleId+"-sticky");
-  handleSticky.style.left = (offsets[frozenCount]-7)+"px";
+  handle.style.left = (offsets[frozenCount]-7)+"px";
   handle.style.height = table.getBoundingClientRect().height+"px";
-  repositionTotalOutline(wrap, table);
   state._freezeOffsets = offsets;
-}
-
-function repositionTotalOutline(wrap, table){
-  const outline = wrap.querySelector(".total-row-outline");
-  const totalRow = table.querySelector("tr.total-row");
-  if(!outline || !totalRow) return;
-  outline.style.width = wrap.clientWidth + "px";
-  outline.style.height = totalRow.getBoundingClientRect().height + "px";
-}
-
-function repositionAllTotalOutlines(){
-  document.querySelectorAll(".table-scroll").forEach(wrap=>{
-    const table = wrap.querySelector("table");
-    if(table) repositionTotalOutline(wrap, table);
-  });
 }
 
 function bindFreezeHandleDrag(wrapId, tableId, handleId, state){
@@ -2145,7 +1977,7 @@ function renderMediaCampaignTable(){
     });
   }
 
-  let html = freezeHandleHTML("mediaFreezeHandle")+'<div class="total-row-outline-sticky"><div class="total-row-outline"></div></div>'+'<table class="data-table perf-table" id="mediaCampaignTable"><thead><tr>';
+  let html = freezeHandleHTML("mediaFreezeHandle")+'<table class="data-table perf-table" id="mediaCampaignTable"><thead><tr>';
   cols.forEach(c=>{
     const arrow = sortState.col===c.id ? (sortState.dir==="asc"?"▲":"▼") : "";
     html += '<th class="'+(c.alignLeft?"left":"")+'" data-sortcol="'+c.id+'" data-colid="'+c.id+'">'+escapeHtml(c.label)+' <span class="arrow">'+arrow+'</span></th>';
@@ -2160,26 +1992,38 @@ function renderMediaCampaignTable(){
   html += '</tr>';
 
   groupList.forEach(grp=>{
-    html += '<tr class="group-row">';
+    const expanded = App.mediaView.expandedMedia.has(grp.mediaRaw);
+    html += '<tr class="group-row" data-group="'+escapeHtml(grp.mediaRaw)+'">';
     cols.forEach(c=>{
-      if(c.id==="__campaign"){ html += '<td class="left">'+escapeHtml(grp.label)+' ('+grp.campaignRows.length+')</td>'; return; }
+      if(c.id==="__campaign"){ html += '<td class="left">'+(expanded?"▾":"▸")+' '+escapeHtml(grp.label)+' ('+grp.campaignRows.length+')</td>'; return; }
       if(c.id==="__media"){ html += '<td>-</td>'; return; }
       const m = METRIC_BY_ID[c.id]; html += '<td>'+fmtMetric(m, m.get(grp.groupD), false)+'</td>';
     });
     html += '</tr>';
-    sortRows(grp.campaignRows).forEach(row=>{
-      html += '<tr>';
-      cols.forEach(c=>{
-        if(c.id==="__campaign") html += '<td class="left">'+escapeHtml(row.campaign)+'</td>';
-        else if(c.id==="__media") html += '<td>'+escapeHtml(row.media)+'</td>';
-        else { const m=METRIC_BY_ID[c.id]; html += '<td>'+fmtMetric(m, m.get(row.d), false)+'</td>'; }
+    if(expanded){
+      sortRows(grp.campaignRows).forEach(row=>{
+        html += '<tr>';
+        cols.forEach(c=>{
+          if(c.id==="__campaign") html += '<td class="left">'+escapeHtml(row.campaign)+'</td>';
+          else if(c.id==="__media") html += '<td>'+escapeHtml(row.media)+'</td>';
+          else { const m=METRIC_BY_ID[c.id]; html += '<td>'+fmtMetric(m, m.get(row.d), false)+'</td>'; }
+        });
+        html += '</tr>';
       });
-      html += '</tr>';
-    });
+    }
   });
   html += '</tbody></table>';
 
   document.getElementById("mediaCampaignTableWrap").innerHTML = html;
+
+  document.getElementById("mediaCampaignTableWrap").querySelectorAll("tr.group-row").forEach(tr=>{
+    tr.addEventListener("click", ()=>{
+      const g = tr.dataset.group;
+      if(App.mediaView.expandedMedia.has(g)) App.mediaView.expandedMedia.delete(g);
+      else App.mediaView.expandedMedia.add(g);
+      renderMediaCampaignTable();
+    });
+  });
 
   bindSortHandlers("mediaCampaignTableWrap", "mediaCampaign", renderMediaCampaignTable);
   applyFreezeLayout("mediaCampaignTableWrap","mediaCampaignTable","mediaFreezeHandle", gridState);
@@ -2245,30 +2089,55 @@ function renderDonut(canvasId, labels, data){
   const colorMap = getMediaColorMap();
   const textColor = themeVar("--text","#1a1a1a");
   const total = data.reduce((a,b)=>a+(b||0),0);
+  const lineColor = themeVar("--border","#ccc");
   const donutValueLabelPlugin = {
     id:"donutValueLabel",
     afterDraw(chart){
       const {ctx} = chart;
       const meta = chart.getDatasetMeta(0);
       if(!total) return;
-      ctx.save();
+      const items = [];
       meta.data.forEach((arc,i)=>{
         const val = data[i];
         if(!val) return;
         const pct = val/total;
-        if(pct < 0.035) return;
-        const props = arc.getProps(["startAngle","endAngle","innerRadius","outerRadius","x","y"], true);
+        if(pct < 0.02) return;
+        const props = arc.getProps(["startAngle","endAngle","outerRadius","x","y"], true);
         const mid = (props.startAngle+props.endAngle)/2;
-        const r = (props.innerRadius+props.outerRadius)/2;
-        const px = props.x + Math.cos(mid)*r;
-        const py = props.y + Math.sin(mid)*r;
-        ctx.textAlign = "center";
+        const cos = Math.cos(mid), sin = Math.sin(mid);
+        const isRight = cos >= 0;
+        const anchorX = props.x + cos*(props.outerRadius+4);
+        const anchorY = props.y + sin*(props.outerRadius+4);
+        const bendX = props.x + cos*(props.outerRadius+16);
+        const bendY = props.y + sin*(props.outerRadius+16);
+        items.push({ pct, val, isRight, anchorX, anchorY, bendX, labelY:bendY });
+      });
+      [true,false].forEach(side=>{
+        const list = items.filter(it=>it.isRight===side).sort((a,b)=>a.labelY-b.labelY);
+        const minGap = 26;
+        for(let i=1;i<list.length;i++){
+          if(list[i].labelY - list[i-1].labelY < minGap) list[i].labelY = list[i-1].labelY + minGap;
+        }
+      });
+      ctx.save();
+      items.forEach(it=>{
+        const labelX = it.bendX + (it.isRight ? 12 : -12);
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(it.anchorX, it.anchorY);
+        ctx.lineTo(it.bendX, it.labelY);
+        ctx.lineTo(labelX, it.labelY);
+        ctx.stroke();
+
+        ctx.textAlign = it.isRight ? "left" : "right";
         ctx.textBaseline = "middle";
-        ctx.fillStyle = "#000";
+        const tx = labelX + (it.isRight ? 4 : -4);
+        ctx.fillStyle = textColor;
         ctx.font = "700 12px Pretendard, sans-serif";
-        ctx.fillText((pct*100).toFixed(1)+"%", px, py-8);
-        ctx.font = "500 10.5px Pretendard, sans-serif";
-        ctx.fillText(fmtWonAbbrev(val, true), px, py+8);
+        ctx.fillText((it.pct*100).toFixed(1)+"%", tx, it.labelY-7);
+        ctx.font = "400 10.5px Pretendard, sans-serif";
+        ctx.fillText(fmtWonAbbrev(it.val, true), tx, it.labelY+7);
       });
       ctx.restore();
     }
@@ -2278,7 +2147,7 @@ function renderDonut(canvasId, labels, data){
     data:{ labels, datasets:[{ data, backgroundColor: labels.map(l=>colorMap[l]||"#94A3B8"), borderWidth:0, hoverOffset:6 }] },
     options:{
       responsive:true, maintainAspectRatio:false, cutout:"62%",
-      layout:{ padding:10 },
+      layout:{ padding:{top:36,bottom:36,left:56,right:56} },
       plugins:{
         legend:{ position:"bottom", labels:{ boxWidth:10, boxHeight:10, padding:14, color:textColor, font:{size:12,weight:"500"} } },
         tooltip:{ callbacks:{ label:(ctx)=> ctx.label+": "+fmtWon(ctx.parsed)+" ("+(total?(ctx.parsed/total*100).toFixed(1):"0")+"%)" } }
@@ -2342,7 +2211,20 @@ const CREATIVE_TOP10_CARD_METRICS = [
   {id:"purchase", label:"예약 확정(구매)"},
   {id:"revenue", label:"Revenue"}
 ];
+const CREATIVE_SA_COLUMNS = [
+  {id:"impressions", label:"노출"}, {id:"clicks", label:"클릭"}, {id:"costGross", label:"광고비"},
+  {id:"ctr", label:"CTR"}, {id:"cpaIntegrated", label:"통합 CPA"}, {id:"installs", label:"인스톨"},
+  {id:"purchase", label:"예약확정(구매)"}, {id:"revenue", label:"Revenue"}
+];
+
 function renderCreativeTop10(flatRows){
+  const daRows = flatRows.filter(r=>r.purposeType==="DA");
+  const saRows = flatRows.filter(r=>r.purposeType==="SA");
+  renderCreativeTop10DA(daRows);
+  renderCreativeTop10SA(saRows);
+}
+
+function renderCreativeTop10DA(flatRows){
   const rm = METRIC_BY_ID.roas;
   const withSpend = flatRows.filter(r=>r.d.costGross>0);
   const roasOrZero = r=>{ const v=rm.get(r.d); return (v===null||v===undefined||!isFinite(v))?0:v; };
@@ -2358,7 +2240,7 @@ function renderCreativeTop10(flatRows){
       '<div class="dropzone mini" id="creativeMediaDropzone">'+
         '<div class="big-ico">🖼️</div>'+
         '<h2>소재 썸네일 이미지를 연결해주세요</h2>'+
-        '<p>Claude 아티팩트는 외부 사이트(구글시트) 자동 연동이 차단되어 있어 썸네일을 자동으로 불러올 수 없습니다.<br>'+
+        '<p>썸네일 자동 연동에 실패했습니다. "이미지 새로고침"으로 다시 시도하시거나,<br>'+
         '구글시트에서 소재-이미지 매핑 시트를 <b>파일 &gt; 다운로드 &gt; CSV</b>로 저장한 뒤, 아래 버튼으로 올려주세요.</p>'+
         '<button class="btn primary" style="margin-top:14px;" id="creativeMediaDropzoneBtn" type="button">📁 파일 선택해서 업로드</button>'+
       '</div>';
@@ -2368,7 +2250,7 @@ function renderCreativeTop10(flatRows){
   }
 
   document.getElementById("creativeTop10Grid").innerHTML = top10.length ? top10.map((r,i)=>{
-    const mm = App.creativeMediaMap ? App.creativeMediaMap.get(r.mediaRaw+"|||"+r.label) : null;
+    const mm = lookupCreativeMedia(r.mediaRaw, r.label);
     const thumbHtml = mm ?
       '<a class="top10-thumb" href="'+escapeHtml(mm.previewUrl||"#")+'" target="_blank" rel="noopener"><img src="'+escapeHtml(mm.thumbnailUrl)+'" loading="lazy" alt="">'+(mm.fileType==="video"?'<span class="top10-play">▶</span>':'')+'</a>' :
       '<div class="top10-thumb top10-thumb-empty">'+(App.creativeMediaMapStatus==="loading"?"⏳":"🖼️")+'</div>';
@@ -2385,6 +2267,92 @@ function renderCreativeTop10(flatRows){
       '<div class="top10-metrics">'+metricsHtml+'</div>'+
     '</div>';
   }).join("") : '<div class="empty-hint">표시할 소재가 없습니다.</div>';
+}
+
+function renderCreativeTop10SA(flatRows){
+  const sorted = flatRows.slice().sort((a,b)=>String(a.label).localeCompare(String(b.label)));
+  const agg = newAggBucket();
+  sorted.forEach(r=>{ Object.keys(agg).forEach(k=>{ if(typeof r.d[k]==="number") agg[k]+=r.d[k]||0; }); });
+  const totalDerived = derive(agg);
+
+  let html = '<table class="data-table" id="creativeTop10SATable"><thead><tr>'+
+    '<th class="left">매체</th><th class="left">캠페인</th><th class="left">광고그룹</th><th class="left">키워드</th>'+
+    CREATIVE_SA_COLUMNS.map(c=>'<th>'+escapeHtml(c.label)+'</th>').join("")+
+    '</tr></thead><tbody>';
+  html += '<tr class="total-row"><td class="left">Total</td><td class="left"></td><td class="left"></td><td class="left"></td>'+
+    CREATIVE_SA_COLUMNS.map(c=>{ const m=METRIC_BY_ID[c.id]; return '<td>'+fmtMetric(m, m.get(totalDerived), false)+'</td>'; }).join("")+
+    '</tr>';
+  sorted.forEach(r=>{
+    html += '<tr><td class="left">'+escapeHtml(r.media)+'</td><td class="left">'+escapeHtml(r.campaign)+'</td><td class="left">'+escapeHtml(r.adgroup)+'</td><td class="left">'+escapeHtml(r.label)+'</td>'+
+      CREATIVE_SA_COLUMNS.map(c=>{ const m=METRIC_BY_ID[c.id]; return '<td>'+fmtMetric(m, m.get(r.d), false)+'</td>'; }).join("")+
+      '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById("creativeTop10SAWrap").innerHTML = sorted.length ? html : '<div class="empty-hint">표시할 SA 키워드가 없습니다.</div>';
+}
+
+const CREATIVE_FLAT_LEAD_COLS = [
+  {id:"__media", label:"매체", alignLeft:true},
+  {id:"__campaign", label:"캠페인", alignLeft:true},
+  {id:"__adgroup", label:"광고그룹", alignLeft:true},
+  {id:"__creative", label:"소재명", alignLeft:true}
+];
+function creativeFlatColumns(){
+  const metricCols = TABLE_COLUMNS.filter(id=>App.creativeView.visibleCols.has(id)).map(id=>({id, label:METRIC_BY_ID[id].label, alignLeft:false}));
+  return CREATIVE_FLAT_LEAD_COLS.concat(metricCols);
+}
+const CREATIVE_FLAT_SORT_KEY = {__media:"media", __campaign:"campaign", __adgroup:"adgroup", __creative:"label"};
+
+function renderCreativeFlatTable(flatRows, totalD){
+  const gridState = getGridState("creative", 4);
+  const cols = applyColumnOrder(creativeFlatColumns(), gridState);
+  const sortState = App.sort.creative;
+  let sortedRows = flatRows;
+  if(sortState.col){
+    const key = CREATIVE_FLAT_SORT_KEY[sortState.col];
+    if(key){
+      sortedRows = flatRows.slice().sort((a,b)=> sortState.dir==="asc" ? String(a[key]).localeCompare(String(b[key])) : String(b[key]).localeCompare(String(a[key])));
+    } else {
+      const m = METRIC_BY_ID[sortState.col];
+      sortedRows = flatRows.slice().sort((a,b)=>{
+        const va=m.get(a.d), vb=m.get(b.d);
+        const na=(va===null||va===undefined)?-Infinity:va, nb=(vb===null||vb===undefined)?-Infinity:vb;
+        return sortState.dir==="asc" ? na-nb : nb-na;
+      });
+    }
+  }
+
+  let html = freezeHandleHTML("creativeFreezeHandle")+'<table class="data-table" id="creativeTable"><thead><tr>';
+  cols.forEach(c=>{
+    const arrow = sortState.col===c.id ? (sortState.dir==="asc"?"▲":"▼") : "";
+    html += '<th class="'+(c.alignLeft?"left":"")+'" data-sortcol="'+c.id+'" data-colid="'+c.id+'">'+escapeHtml(c.label)+' <span class="arrow">'+arrow+'</span></th>';
+  });
+  html += '</tr></thead><tbody>';
+  html += '<tr class="total-row">';
+  cols.forEach(c=>{
+    if(c.id==="__media"){ html += '<td class="left">Total</td>'; return; }
+    if(c.id==="__campaign" || c.id==="__adgroup" || c.id==="__creative"){ html += '<td class="left">-</td>'; return; }
+    const m=METRIC_BY_ID[c.id]; html += '<td>'+fmtMetric(m, m.get(totalD), false)+'</td>';
+  });
+  html += '</tr>';
+  sortedRows.forEach(row=>{
+    html += '<tr>';
+    cols.forEach(c=>{
+      if(c.id==="__media") html += '<td class="left">'+escapeHtml(row.media)+'</td>';
+      else if(c.id==="__campaign") html += '<td class="left">'+escapeHtml(row.campaign)+'</td>';
+      else if(c.id==="__adgroup") html += '<td class="left">'+escapeHtml(row.adgroup)+'</td>';
+      else if(c.id==="__creative") html += '<td class="left">'+escapeHtml(row.label)+'</td>';
+      else { const m=METRIC_BY_ID[c.id]; html += '<td>'+fmtMetric(m, m.get(row.d), false)+'</td>'; }
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+
+  document.getElementById("creativeTableWrap").innerHTML = html;
+  bindSortHandlers("creativeTableWrap","creative", renderCreativeView);
+  applyFreezeLayout("creativeTableWrap","creativeTable","creativeFreezeHandle", gridState);
+  bindFreezeHandleDrag("creativeTableWrap","creativeTable","creativeFreezeHandle", gridState);
+  bindColumnDragReorder("creativeTable","creative", renderCreativeView);
 }
 
 function renderCreativeView(){
@@ -2416,7 +2384,7 @@ function renderCreativeView(){
   });
   const flatRows = [...byCreative.entries()].map(([key,agg])=>{
     const r = creativeMeta.get(key);
-    return {key, label:r.creative, media:r.mediaDisplay, mediaRaw:r.mediaRaw, campaign:r.campaign, adgroup:r.adgroup, creativeType:r.creativeType, d:derive(agg)};
+    return {key, label:r.creative, media:r.mediaDisplay, mediaRaw:r.mediaRaw, campaign:r.campaign, adgroup:r.adgroup, creativeType:r.creativeType, purposeType:r.purposeType, d:derive(agg)};
   });
 
   renderCreativeTop10(flatRows);
@@ -2424,14 +2392,7 @@ function renderCreativeView(){
   const totalD = derive(aggregate(filtered));
 
   if(App.creativeGroupMode==="flat"){
-    document.getElementById("creativeTableWrap").innerHTML = buildSimpleTable("creative","소재명", flatRows.map(r=>({
-      label:r.label, extra:' <span style="color:var(--text-muted);font-size:11px;">'+escapeHtml(r.media)+' &gt; '+escapeHtml(r.campaign)+' &gt; '+escapeHtml(r.adgroup)+'</span>',
-      d:r.d
-    })), totalD, App.creativeView.visibleCols);
-    bindSortHandlers("creativeTableWrap","creative", renderCreativeView);
-    applyFreezeLayout("creativeTableWrap","creativeTable","creativeFreezeHandle", getGridState("creative",1));
-    bindFreezeHandleDrag("creativeTableWrap","creativeTable","creativeFreezeHandle", getGridState("creative",1));
-    bindColumnDragReorder("creativeTable","creative", renderCreativeView);
+    renderCreativeFlatTable(flatRows, totalD);
   } else {
     renderCreativeTree(flatRows, totalD);
   }
@@ -2552,20 +2513,11 @@ function historySourceRecords(){
 function renderHistoryView(){
   const statusEl = document.getElementById("historyLastUpdated");
   statusEl.textContent = App.historyStatus==="loading" ? "히스토리 불러오는 중..." :
-    App.historyStatus==="error" ? "히스토리 로드 실패 - '파일로 업로드'를 이용해주세요" :
+    App.historyStatus==="error" ? "히스토리 로드 실패 - '새로고침'을 눌러 다시 시도해주세요" :
     App.historyLastUpdated ? ("마지막 갱신: "+App.historyLastUpdated) : "";
 
   if(App.historyRecords.length===0 && App.historyStatus!=="loading"){
-    document.getElementById("historyTimeline").innerHTML =
-      '<div class="dropzone mini" id="historyDropzone">'+
-        '<div class="big-ico">🗒️</div>'+
-        '<h2>운영 히스토리 파일을 올려주세요</h2>'+
-        '<p>Claude 아티팩트는 외부 사이트(구글시트) 자동 연동이 차단되어 있어 자동으로 불러올 수 없습니다.<br>'+
-        '구글시트에서 "History" 시트를 <b>파일 &gt; 다운로드 &gt; CSV</b>로 저장한 뒤, 아래 버튼으로 올려주세요.</p>'+
-        '<button class="btn primary" style="margin-top:14px;" id="historyDropzoneBtn" type="button">📁 파일 선택해서 업로드</button>'+
-      '</div>';
-    const btn = document.getElementById("historyDropzoneBtn");
-    btn.addEventListener("click", ()=>document.getElementById("historyFileInput").click());
+    document.getElementById("historyTimeline").innerHTML = '<div class="empty-hint">표시할 히스토리가 없습니다. 상단의 \'새로고침\'을 눌러주세요.</div>';
     return;
   }
 
@@ -2576,7 +2528,7 @@ function renderHistoryView(){
     if(!byDate.has(key)) byDate.set(key, []);
     byDate.get(key).push(r);
   });
-  const dateKeys = [...byDate.keys()].sort((a,b)=>b.localeCompare(a));
+  const dateKeys = [...byDate.keys()].sort((a,b)=> App.historySortOrder==="asc" ? a.localeCompare(b) : b.localeCompare(a));
   const colorMap = getMediaColorMap();
 
   const html = dateKeys.map(dateKey=>{
@@ -2602,7 +2554,7 @@ function renderActiveView(){
   else if(App.activeView==="history") renderHistoryView();
 }
 
-const FILTER_BAR_HIDDEN_FIELDS = { media:["media"], history:["purpose","os","campaign"] };
+const FILTER_BAR_HIDDEN_FIELDS = { summary:["sort"], media:["media","sort"], creative:["sort"], history:["purpose","os","campaign"] };
 function applyFilterBarVisibility(view){
   const hidden = FILTER_BAR_HIDDEN_FIELDS[view] || [];
   document.querySelectorAll(".filter-bar .filter-field").forEach(el=>{
@@ -2630,26 +2582,42 @@ function onFiltersChanged(){
 function showError(msg){
   document.getElementById("errorBanner").innerHTML = '<div class="error-banner">⚠️ '+escapeHtml(msg)+'</div>';
 }
-function clearError(){ document.getElementById("errorBanner").innerHTML=""; document.getElementById("emptyError").innerHTML=""; }
+function clearError(){ document.getElementById("errorBanner").innerHTML=""; }
 
-function showEmptyError(msg){
-  document.getElementById("emptyError").innerHTML = '<div class="error-banner" style="margin-top:16px;text-align:left;">⚠️ '+escapeHtml(msg)+'</div>';
-}
-
-async function handleFile(file){
-  clearError();
-  const spinnerHost = document.getElementById("appBody").style.display!=="none" ? "errorBanner" : "emptyError";
-  document.getElementById(spinnerHost).innerHTML = '<div class="spinner-wrap"><div class="spinner"></div>엑셀 파싱 중...</div>';
+async function loadMainDataFromSheet(){
+  App.mainDataStatus = "loading";
+  const hasData = App.records.length>0;
+  if(hasData){
+    document.getElementById("errorBanner").innerHTML = '<div class="spinner-wrap"><div class="spinner"></div>구글 시트에서 최신 데이터를 불러오는 중...</div>';
+  } else {
+    document.getElementById("loadingStateTitle").textContent = "구글 시트에서 데이터를 불러오는 중...";
+    document.getElementById("loadingStateDesc").textContent = "잠시만 기다려주세요.";
+    document.getElementById("retryMainLoadBtn").style.display = "none";
+  }
   try{
-    const buffer = await file.arrayBuffer();
-    const parsed = parseWorkbook(buffer, file.name);
-    applyParsedData(parsed);
-    idbSave(file.name, buffer);
+    const res = await fetch(MAIN_DATA_SHEET_URL, {cache:"no-store"});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const text = await res.text();
+    const rows = parseCsvRows(text);
+    const {records, dateMin, dateMax} = buildRecordsFromRows(rows);
+    const meta = {
+      title:"광고 캠페인 인바운드 대시보드", totalBudget:940000000,
+      startDate:dateMin, totalDays:(dateMin && dateMax) ? Math.round((dateMax-dateMin)/86400000)+1 : null,
+      reportDate:dateMax, fileName:"구글 시트 연동", loadedAt:Date.now()
+    };
+    applyParsedData({records, meta, dateMin, dateMax});
+    App.mainDataStatus = "loaded";
     clearError();
   }catch(e){
-    console.error(e);
-    if(document.getElementById("appBody").style.display!=="none") showError(e.message);
-    else showEmptyError(e.message);
+    console.error("메인 데이터 로드 실패:", e);
+    App.mainDataStatus = "error";
+    if(hasData){
+      showError("최신 데이터를 불러오지 못했습니다: "+e.message);
+    } else {
+      document.getElementById("loadingStateTitle").textContent = "데이터를 불러오지 못했습니다";
+      document.getElementById("loadingStateDesc").textContent = e.message;
+      document.getElementById("retryMainLoadBtn").style.display = "inline-block";
+    }
   }
 }
 
@@ -2664,7 +2632,7 @@ function applyParsedData(parsed){
   App.creativeTypeFilter = null;
   App.creativeView = { visibleCols:new Set(TABLE_COLUMNS) };
   App.campaignPerf = { visibleCols:new Set(CAMPAIGN_PERF_COLUMNS), expandedMedia:new Set() };
-  App.mediaView = { toggleMedia:{all:true,set:new Set()}, visibleCols:new Set(CAMPAIGN_PERF_COLUMNS) };
+  App.mediaView = { toggleMedia:{all:true,set:new Set()}, visibleCols:new Set(CAMPAIGN_PERF_COLUMNS), expandedMedia:new Set() };
   App.mediaChartAxes = { bar:"costGross", line1:"installs", line2:"purchase" };
   App._mediaColorMap = null;
   App.grid = {};
@@ -2680,7 +2648,7 @@ function applyParsedData(parsed){
 function updateStatusBar(){
   const dt = App.meta.loadedAt ? new Date(App.meta.loadedAt) : null;
   const dtStr = dt ? (dt.getFullYear()+"-"+pad2(dt.getMonth()+1)+"-"+pad2(dt.getDate())+" "+pad2(dt.getHours())+":"+pad2(dt.getMinutes())) : "-";
-  document.getElementById("statusText").innerHTML = "📁 현재 데이터: <b>"+escapeHtml(App.meta.fileName||"-")+"</b> · 로드 일시: "+dtStr+" · "+escapeHtml(App.meta.title||"");
+  document.getElementById("statusText").textContent = "업데이트: "+dtStr;
 }
 
 /* ===================== Event wiring ===================== */
@@ -2761,16 +2729,13 @@ function initFilterBar(){
     if(e.target.files[0]) handleCreativeMediaFileUpload(e.target.files[0]);
     e.target.value = "";
   });
-  document.getElementById("uploadHistoryBtn").addEventListener("click", ()=>document.getElementById("historyFileInput").click());
-  document.getElementById("historyFileInput").addEventListener("change", e=>{
-    if(e.target.files[0]) handleHistoryFileUpload(e.target.files[0]);
-    e.target.value = "";
-  });
-
   registerCustomSelect("purpose", "f-purpose", "purposeSelectWrap", "f-purpose-trigger", "f-purpose-panel");
   registerCustomSelect("media", "f-media", "mediaSelectWrap", "f-media-trigger", "f-media-panel", true);
   registerCustomSelect("os", "f-os", "osSelectWrap", "f-os-trigger", "f-os-panel");
   registerCustomSelect("campaign", "f-campaign", "campaignSelectWrap", "f-campaign-trigger", "f-campaign-panel");
+  registerCustomSelect("historySort", "f-historySort", "historySortSelectWrap", "f-historySort-trigger", "f-historySort-panel");
+  fillCustomSelect("historySort", [{value:"desc",label:"최신순"},{value:"asc",label:"오래된순"}], App.historySortOrder);
+  document.getElementById("f-historySort").addEventListener("change", e=>{ App.historySortOrder = e.target.value; renderHistoryView(); });
 
   document.addEventListener("click", (e)=>{
     const calPop = document.getElementById("calendarPopup");
@@ -2799,10 +2764,37 @@ function initFilterBar(){
 
 /* ===================== External Google Sheet integrations ===================== */
 
+// 리포트의 소재명과 소재-이미지 매핑 시트의 소재명은 사람이 각각 입력하다 보니
+// 대소문자/구분기호(_, -, 공백)나 "reel1" vs "reels_1" 같은 단수·복수 표기가 살짝 어긋나는 경우가 있습니다.
+// 완전히 다른 표기(예: 서로 무관한 이름)까지 매칭하면 엉뚱한 소재에 이미지가 붙는 위험이 있으므로,
+// 아래처럼 표기 차이가 확실히 좁은 범위(구분기호/대소문자, 마지막 숫자 앞 s 유무)에서만 매칭을 넓힙니다.
+function normCreativeName(s){
+  return String(s||"").toLowerCase().replace(/[^a-z0-9가-힣]/g,"");
+}
+function creativeNameVariants(s){
+  const n = normCreativeName(s);
+  const variants = new Set([n]);
+  const m = n.match(/^(.*?)(\d+)$/);
+  if(m){
+    const base = m[1], digits = m[2];
+    if(base.endsWith("s")) variants.add(base.slice(0,-1)+digits);
+    else variants.add(base+"s"+digits);
+  }
+  return [...variants];
+}
+function lookupCreativeMedia(mediaRaw, creativeName){
+  if(!App.creativeMediaMap || !mediaRaw) return null;
+  for(const variant of creativeNameVariants(creativeName)){
+    const hit = App.creativeMediaMap.get(mediaRaw+"|||"+variant);
+    if(hit) return hit;
+  }
+  return null;
+}
+
 function buildCreativeMediaMap(objs){
   const map = new Map();
   objs.forEach(o=>{
-    const creative = String(o["소재명"]||"").trim();
+    const creative = normCreativeName(o["소재명"]);
     const mediaRaw = KOREAN_MEDIA_TO_RAW[String(o["매체"]||"").trim()];
     if(!creative || !mediaRaw) return;
     const key = mediaRaw+"|||"+creative;
@@ -2838,7 +2830,7 @@ async function loadCreativeMediaMap(){
     App.creativeMediaMap = buildCreativeMediaMap(csvRowsToIndexedObjects(parseCsvRows(text)));
     App.creativeMediaMapStatus = "loaded";
   } catch(e){
-    console.error("소재 이미지 매핑 로드 실패 (네트워크 - Claude Artifact는 외부 요청이 차단되어 있어, '파일로 업로드' 버튼으로 CSV/XLSX를 직접 올려주세요):", e);
+    console.error("소재 이미지 매핑 로드 실패:", e);
     App.creativeMediaMapStatus = "error";
   }
   if(App.activeView==="creative") renderCreativeView();
@@ -2887,21 +2879,6 @@ function buildHistoryRecords(objs){
   }).filter(r=>r.content);
 }
 
-async function handleHistoryFileUpload(file){
-  App.historyStatus = "loading";
-  if(App.activeView==="history") renderHistoryView();
-  try{
-    const rows = await readFileAsRows(file);
-    App.historyRecords = buildHistoryRecords(csvRowsToIndexedObjects(rows));
-    App.historyLastUpdated = new Date().toLocaleString("ko-KR")+" (파일 업로드)";
-    App.historyStatus = "loaded";
-  } catch(e){
-    console.error("히스토리 파일 업로드 실패:", e);
-    App.historyStatus = "error";
-  }
-  if(App.activeView==="history") renderHistoryView();
-}
-
 async function loadHistoryData(){
   App.historyStatus = "loading";
   if(App.activeView==="history") renderHistoryView();
@@ -2913,41 +2890,10 @@ async function loadHistoryData(){
     App.historyLastUpdated = new Date().toLocaleString("ko-KR");
     App.historyStatus = "loaded";
   } catch(e){
-    console.error("히스토리 데이터 로드 실패 (네트워크 - Claude Artifact는 외부 요청이 차단되어 있어, '파일로 업로드' 버튼으로 CSV/XLSX를 직접 올려주세요):", e);
+    console.error("히스토리 데이터 로드 실패:", e);
     App.historyStatus = "error";
   }
   if(App.activeView==="history") renderHistoryView();
-}
-
-function initFileHandling(){
-  const dropzone = document.getElementById("dropzone");
-  const fileInputReplace = document.getElementById("fileInputReplace");
-  const overlay = document.getElementById("dropOverlay");
-
-  dropzone.addEventListener("click", ()=>fileInputReplace.click());
-  fileInputReplace.addEventListener("change", e=>{ if(e.target.files[0]) handleFile(e.target.files[0]); e.target.value=""; });
-
-  document.getElementById("clearDataBtn").addEventListener("click", async ()=>{
-    await idbClear();
-    App.records = []; App.filteredRecords = [];
-    document.getElementById("appBody").style.display="none";
-    document.getElementById("emptyState").style.display="block";
-    clearError();
-  });
-
-  function isFileDrag(e){
-    return !!(e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).indexOf("Files")>=0);
-  }
-  let dragCounter = 0;
-  window.addEventListener("dragenter", e=>{ if(!isFileDrag(e)) return; e.preventDefault(); dragCounter++; overlay.classList.add("show"); });
-  window.addEventListener("dragover", e=>{ if(!isFileDrag(e)) return; e.preventDefault(); });
-  window.addEventListener("dragleave", e=>{ if(!isFileDrag(e)) return; e.preventDefault(); dragCounter--; if(dragCounter<=0){ dragCounter=0; overlay.classList.remove("show"); } });
-  window.addEventListener("drop", e=>{
-    if(!isFileDrag(e)) return;
-    e.preventDefault(); dragCounter=0; overlay.classList.remove("show");
-    const file = e.dataTransfer.files && e.dataTransfer.files[0];
-    if(file) handleFile(file);
-  });
 }
 
 /* ===================== Init ===================== */
@@ -2956,21 +2902,11 @@ async function init(){
   initTheme();
   initSidebar();
   initFilterBar();
-  initFileHandling();
-  window.addEventListener("resize", repositionAllTotalOutlines, {passive:true});
+  document.getElementById("retryMainLoadBtn").addEventListener("click", loadMainDataFromSheet);
+  document.getElementById("refreshMainDataBtn").addEventListener("click", loadMainDataFromSheet);
   loadCreativeMediaMap();
   loadHistoryData();
-
-  const cached = await idbLoad();
-  if(cached && cached.buffer){
-    try{
-      const parsed = parseWorkbook(cached.buffer, cached.fileName);
-      parsed.meta.loadedAt = cached.savedAt;
-      applyParsedData(parsed);
-    }catch(e){
-      console.warn("캐시 데이터 파싱 실패", e);
-    }
-  }
+  loadMainDataFromSheet();
 }
 
 document.addEventListener("DOMContentLoaded", init);
