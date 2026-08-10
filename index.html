@@ -272,7 +272,7 @@ input[type=file]{display:none;}
 .summary-flex{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;}
 .mini-chart-box{flex:1;min-width:260px;background:var(--bg);border-radius:10px;padding:12px;}
 .mini-chart-box h4{margin:0 0 8px;font-size:12.5px;font-weight:600;}
-.mini-chart-canvas-wrap{height:210px;}
+.mini-chart-canvas-wrap{height:236px;}
 
 .table-scroll{overflow-x:auto;position:relative;border:1px solid var(--border);border-radius:12px;}
 #creativeTableWrap{max-height:620px;overflow-y:auto;}
@@ -2119,11 +2119,11 @@ function renderDonut(canvasId, labels, data){
         const mid = (props.startAngle+props.endAngle)/2;
         const cos = Math.cos(mid), sin = Math.sin(mid);
         const isRight = cos >= 0;
-        const anchorX = props.x + cos*(props.outerRadius+4);
-        const anchorY = props.y + sin*(props.outerRadius+4);
-        const bendX = props.x + cos*(props.outerRadius+16);
-        const bendY = props.y + sin*(props.outerRadius+16);
-        items.push({ pct, val, isRight, anchorX, anchorY, bendX, labelY:bendY });
+        const anchorX = props.x + cos*(props.outerRadius+2);
+        const anchorY = props.y + sin*(props.outerRadius+2);
+        const labelX = props.x + cos*(props.outerRadius+32) + (isRight ? 8 : -8);
+        const labelY = props.y + sin*(props.outerRadius+32);
+        items.push({ pct, val, isRight, anchorX, anchorY, labelX, labelY });
       });
       [true,false].forEach(side=>{
         const list = items.filter(it=>it.isRight===side).sort((a,b)=>a.labelY-b.labelY);
@@ -2134,23 +2134,20 @@ function renderDonut(canvasId, labels, data){
       });
       ctx.save();
       items.forEach(it=>{
-        const labelX = it.bendX + (it.isRight ? 12 : -12);
         ctx.strokeStyle = lineColor;
         ctx.lineWidth = 1.25;
         ctx.beginPath();
         ctx.moveTo(it.anchorX, it.anchorY);
-        ctx.lineTo(it.bendX, it.labelY);
-        ctx.lineTo(labelX, it.labelY);
+        ctx.lineTo(it.labelX - (it.isRight ? 5 : -5), it.labelY);
         ctx.stroke();
 
         ctx.textAlign = it.isRight ? "left" : "right";
         ctx.textBaseline = "middle";
-        const tx = labelX + (it.isRight ? 4 : -4);
         ctx.fillStyle = textColor;
         ctx.font = "700 12px Pretendard, sans-serif";
-        ctx.fillText((it.pct*100).toFixed(1)+"%", tx, it.labelY-7);
+        ctx.fillText((it.pct*100).toFixed(1)+"%", it.labelX, it.labelY-7);
         ctx.font = "400 10.5px Pretendard, sans-serif";
-        ctx.fillText(fmtWonAbbrev(it.val, true), tx, it.labelY+7);
+        ctx.fillText(fmtWonAbbrev(it.val, true), it.labelX, it.labelY+7);
       });
       ctx.restore();
     }
@@ -2160,7 +2157,7 @@ function renderDonut(canvasId, labels, data){
     data:{ labels, datasets:[{ data, backgroundColor: labels.map(l=>colorMap[l]||"#94A3B8"), borderWidth:0, hoverOffset:6 }] },
     options:{
       responsive:true, maintainAspectRatio:false, cutout:"62%",
-      layout:{ padding:{top:36,bottom:36,left:56,right:56} },
+      layout:{ padding:{top:50,bottom:36,left:56,right:56} },
       plugins:{
         legend:{ position:"bottom", labels:{ boxWidth:10, boxHeight:10, padding:14, color:textColor, font:{size:12,weight:"500"} } },
         tooltip:{ callbacks:{ label:(ctx)=> ctx.label+": "+fmtWon(ctx.parsed)+" ("+(total?(ctx.parsed/total*100).toFixed(1):"0")+"%)" } }
