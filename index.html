@@ -238,6 +238,7 @@ input[type=file]{display:none;}
 .section-header{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:600;margin-bottom:14px;}
 .section-header .sh-actions{margin-left:auto;display:flex;gap:8px;align-items:center;position:relative;}
 .section-header select{border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-size:12px;background:var(--bg);color:var(--text);font-weight:400;}
+#mediaDetailSectionCard .section-header,#mediaDetailSectionCard .btn{font-weight:400;}
 
 .kpi-header{display:flex;align-items:center;gap:10px;margin:20px 0 12px;}
 .kpi-header .title{font-size:15px;font-weight:600;}
@@ -608,7 +609,7 @@ th.col-drop-after{box-shadow:inset -3px 0 0 0 var(--primary);}
             <div class="chart-wrap"><canvas id="mediaTrendChart"></canvas></div>
           </div>
 
-          <div class="section-card">
+          <div class="section-card" id="mediaDetailSectionCard">
             <div class="section-header">매체별 상세 분석
               <div class="sh-actions">
                 <button class="btn small" id="mediaColMgrBtn">⚙ 열 관리</button>
