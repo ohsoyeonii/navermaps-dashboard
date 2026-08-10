@@ -948,11 +948,10 @@ function deriveWithBudget(agg){
   const d = derive(agg);
   d.remainBudget = App.meta.totalBudget - agg.costGross;
   d.burnRate = safeDiv(agg.costGross, App.meta.totalBudget);
-  if(App.meta.startDate){
-    const today = new Date(); today.setHours(0,0,0,0);
+  if(App.meta.startDate && App.dateMax){
     const endDate = new Date(App.meta.startDate.getFullYear(), 7, 31); // 8/31 고정
     const totalDays = Math.round((endDate - App.meta.startDate)/86400000) + 1;
-    const elapsedDays = Math.round((today - App.meta.startDate)/86400000) + 1;
+    const elapsedDays = Math.round((App.dateMax - App.meta.startDate)/86400000) + 1;
     d.periodProgress = totalDays>0 ? Math.max(0, Math.min(1, elapsedDays/totalDays)) : null;
   } else {
     d.periodProgress = null;
