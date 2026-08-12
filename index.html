@@ -453,14 +453,6 @@ th.col-drop-after{box-shadow:inset -3px 0 0 0 var(--primary);}
               <div class="cs-panel" id="f-purpose-panel" role="listbox"></div>
             </div>
           </div>
-          <div class="filter-field" data-filter-field="os">
-            <label>OS</label>
-            <div class="custom-select" id="osSelectWrap">
-              <select id="f-os" class="native-select-hidden" tabindex="-1" aria-hidden="true"></select>
-              <button type="button" class="cs-trigger" id="f-os-trigger"><span class="cs-trigger-label">전체</span><span class="cs-trigger-arrow">▾</span></button>
-              <div class="cs-panel" id="f-os-panel" role="listbox"></div>
-            </div>
-          </div>
           <div class="filter-field" data-filter-field="media">
             <label>매체</label>
             <div class="custom-select" id="mediaSelectWrap">
@@ -489,6 +481,10 @@ th.col-drop-after{box-shadow:inset -3px 0 0 0 var(--primary);}
               <button type="button" class="cs-trigger" id="f-historySort-trigger"><span class="cs-trigger-label">최신순</span><span class="cs-trigger-arrow">▾</span></button>
               <div class="cs-panel" id="f-historySort-panel" role="listbox"></div>
             </div>
+          </div>
+          <div class="filter-field" data-filter-field="reset">
+            <label>&nbsp;</label>
+            <button class="btn" id="resetFiltersBtn">↺ 초기화</button>
           </div>
         </div>
 
@@ -697,6 +693,10 @@ th.col-drop-after{box-shadow:inset -3px 0 0 0 var(--primary);}
 (function(){
 "use strict";
 
+if(typeof Chart !== "undefined"){
+  Chart.defaults.font.family = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif";
+}
+
 /* ===================== Constants & helpers ===================== */
 
 const MEDIA_DISPLAY = { "Raddit":"Reddit" };
@@ -816,7 +816,6 @@ const TABLE_COLUMNS = ["impressions","clicks","ctr","cpc","cpm","costGross","ins
 const CAMPAIGN_PERF_COLUMNS = ["costGross","costNet","impressions","clicks","ctr","cpc","cpm","installs","cpi",
   "tabVisit","cpaTab","step1","cpaStep1","step2","cpaStep2","purchase","cpaPurchase","cvrPurchase","revenue","roas"];
 const CAMPAIGN_PERF_LABEL_OVERRIDE = { costGross:"Cost(Gross)", costNet:"Cost(Net)" };
-const OS_LABEL_OVERRIDE = { All:"WEB" };
 function campaignPerfLabel(id){ return CAMPAIGN_PERF_LABEL_OVERRIDE[id] || METRIC_BY_ID[id].label; }
 
 /* ===================== App state ===================== */
@@ -826,10 +825,10 @@ const App = {
   meta: { title:"", totalBudget:940000000, startDate:null, totalDays:null, reportDate:null, fileName:"", loadedAt:null },
   dateMin:null, dateMax:null,
   filtersByView:{
-    summary:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, os:"all", campaign:"all", dateFrom:null, dateTo:null },
-    media:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, os:"all", campaign:"all", dateFrom:null, dateTo:null },
-    creative:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, os:"all", campaign:"all", dateFrom:null, dateTo:null },
-    history:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, os:"all", campaign:"all", dateFrom:null, dateTo:null }
+    summary:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, campaign:"all", dateFrom:null, dateTo:null },
+    media:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, campaign:"all", dateFrom:null, dateTo:null },
+    creative:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, campaign:"all", dateFrom:null, dateTo:null },
+    history:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, campaign:"all", dateFrom:null, dateTo:null }
   },
   filteredRecords:[],
   activeView:"summary",
@@ -989,7 +988,6 @@ function applyFilters(){
   App.filteredRecords = App.records.filter(r=>{
     if(f.purposeType!=="all" && r.purposeType!==f.purposeType) return false;
     if(!f.mediaSet.all && !f.mediaSet.set.has(r.mediaRaw)) return false;
-    if(f.os!=="all" && r.os!==f.os) return false;
     if(f.campaign!=="all" && r.campaign!==f.campaign) return false;
     if(f.dateFrom && r.date && r.date<f.dateFrom) return false;
     if(f.dateTo && r.date && r.date>f.dateTo) return false;
@@ -1182,9 +1180,6 @@ function renderFilterBar(){
   const mediaOpts = mediaVals.map(v=>({value:v,label:mediaLabel(v)}));
   reconcileMultiFilter(f.mediaSet, mediaVals);
   fillMultiSelect("media", mediaOpts, f.mediaSet, "전체", onMediaFilterChange);
-
-  const osOpts = [{value:"all",label:"전체"}].concat(distinctValues(App.records,"os").sort().map(v=>({value:v,label:OS_LABEL_OVERRIDE[v]||v})));
-  fillCustomSelect("os", osOpts, f.os);
 
   renderCampaignFilterOptions();
   updateDateRangeLabel();
@@ -2123,17 +2118,6 @@ function renderDonut(canvasId, labels, data){
   const textColor = themeVar("--text","#1a1a1a");
   const total = data.reduce((a,b)=>a+(b||0),0);
   const lineColor = themeVar("--text-muted","#888");
-  // 도넛 아래 범례(legend)와 라벨이 겹치지 않도록, 라벨이 "정확히 아래쪽"을 향하는 각도는
-  // 살짝 옆으로 밀어냅니다. 선의 시작점(조각 가장자리)은 그대로 두고 라벨 위치만 조정합니다.
-  function avoidBottomAngle(mid){
-    const twoPi = Math.PI*2;
-    const norm = ((mid % twoPi)+twoPi) % twoPi;
-    const lo = Math.PI*0.36, hi = Math.PI*0.64; // 약 65°~115°(정확히 아래쪽 6시 방향 부근)
-    if(norm > lo && norm < hi){
-      return (norm-lo < hi-norm) ? lo : hi;
-    }
-    return mid;
-  }
   const donutValueLabelPlugin = {
     id:"donutValueLabel",
     afterDraw(chart){
@@ -2142,56 +2126,65 @@ function renderDonut(canvasId, labels, data){
       if(!total) return;
       const chartArea = chart.chartArea;
       const items = [];
+      let outerRadius = 0, cx = 0, cy = 0;
       meta.data.forEach((arc,i)=>{
         const val = data[i];
         if(!val) return;
         const pct = val/total;
         if(pct < 0.02) return;
         const props = arc.getProps(["startAngle","endAngle","outerRadius","x","y"], true);
+        outerRadius = props.outerRadius; cx = props.x; cy = props.y;
         const mid = (props.startAngle+props.endAngle)/2;
-        const labelMid = avoidBottomAngle(mid);
-        const anchorX = props.x + Math.cos(mid)*(props.outerRadius+2);
-        const anchorY = props.y + Math.sin(mid)*(props.outerRadius+2);
-        const lc = Math.cos(labelMid), ls = Math.sin(labelMid);
-        const isRight = lc >= 0;
-        let labelX = props.x + lc*(props.outerRadius+32) + (isRight ? 8 : -8);
-        let labelY = props.y + ls*(props.outerRadius+32);
-        if(chartArea && labelY > chartArea.bottom-14){
-          labelY = chartArea.bottom-14;
-        }
-        items.push({ pct, val, isRight, anchorX, anchorY, labelX, labelY });
+        const cos = Math.cos(mid), sin = Math.sin(mid);
+        const isRight = cos >= 0;
+        const anchorX = props.x + cos*(props.outerRadius+2);
+        const anchorY = props.y + sin*(props.outerRadius+2);
+        items.push({ pct, val, isRight, anchorX, anchorY, naturalY:anchorY });
       });
+      if(!items.length){ return; }
+
+      // 라벨은 조각의 실제 각도(자연스러운 순서)를 유지하면서, 같은 쪽(좌/우) 안에서는
+      // 균등한 세로 간격으로 재배치합니다 → 겹침 없음, 선끼리 교차하지 않음.
+      // elbow(꺾이는 지점)는 라벨과 같은 높이의 고정 열에 위치시켜, 마지막 구간은
+      // 항상 수평선이 되도록 하고(교차 불가), 첫 구간(anchor→elbow)만 순서를 유지해 연결합니다.
+      const gap = 27;
+      const elbowX = { true: cx+outerRadius+16, false: cx-outerRadius-16 };
+      const labelX = { true: cx+outerRadius+38, false: cx-outerRadius-38 };
       [true,false].forEach(side=>{
-        const list = items.filter(it=>it.isRight===side).sort((a,b)=>a.labelY-b.labelY);
-        const minGap = 26;
-        for(let i=1;i<list.length;i++){
-          if(list[i].labelY - list[i-1].labelY < minGap) list[i].labelY = list[i-1].labelY + minGap;
-        }
+        const list = items.filter(it=>it.isRight===side).sort((a,b)=>a.naturalY-b.naturalY);
+        const n = list.length;
+        if(!n) return;
+        const avgY = list.reduce((s,it)=>s+it.naturalY,0)/n;
+        list.forEach((it,idx)=>{ it.labelY = avgY + (idx-(n-1)/2)*gap; });
         if(chartArea){
-          for(let i=list.length-1;i>0;i--){
-            if(list[i].labelY > chartArea.bottom-14){
-              list[i].labelY = chartArea.bottom-14;
-              if(list[i-1].labelY > list[i].labelY - minGap) list[i-1].labelY = list[i].labelY - minGap;
-            }
-          }
+          const top = chartArea.top+16, bottom = chartArea.bottom-16;
+          let shift = 0;
+          if(list[0].labelY < top) shift = top-list[0].labelY;
+          else if(list[n-1].labelY > bottom) shift = bottom-list[n-1].labelY;
+          if(shift) list.forEach(it=>it.labelY += shift);
         }
       });
+
       ctx.save();
       items.forEach(it=>{
+        const ex = elbowX[it.isRight];
+        const lx = labelX[it.isRight];
+        const textX = lx + (it.isRight ? 6 : -6);
         ctx.strokeStyle = lineColor;
         ctx.lineWidth = 1.25;
         ctx.beginPath();
         ctx.moveTo(it.anchorX, it.anchorY);
-        ctx.lineTo(it.labelX - (it.isRight ? 5 : -5), it.labelY);
+        ctx.lineTo(ex, it.labelY);
+        ctx.lineTo(lx, it.labelY);
         ctx.stroke();
 
         ctx.textAlign = it.isRight ? "left" : "right";
         ctx.textBaseline = "middle";
         ctx.fillStyle = textColor;
         ctx.font = "700 12px Pretendard, sans-serif";
-        ctx.fillText((it.pct*100).toFixed(1)+"%", it.labelX, it.labelY-7);
+        ctx.fillText((it.pct*100).toFixed(1)+"%", textX, it.labelY-7);
         ctx.font = "400 10.5px Pretendard, sans-serif";
-        ctx.fillText(fmtWonAbbrev(it.val, true), it.labelX, it.labelY+7);
+        ctx.fillText(fmtWonAbbrev(it.val, true), textX, it.labelY+7);
       });
       ctx.restore();
     }
@@ -2326,7 +2319,7 @@ function renderCreativeTop10DA(flatRows){
       '<div class="top10-rank">#'+(i+1)+'</div>'+
       thumbHtml+
       '<div class="top10-name" title="'+escapeHtml(r.label)+'">'+escapeHtml(r.label)+'</div>'+
-      '<div class="top10-sub">'+escapeHtml(r.media)+' · '+escapeHtml(r.campaign)+' · '+escapeHtml(r.adgroup)+'</div>'+
+      '<div class="top10-sub" title="'+escapeHtml(r.media+' · '+r.campaign+' · '+r.adgroup)+'">'+escapeHtml(r.media)+' · '+escapeHtml(r.campaign)+' · '+escapeHtml(r.adgroup)+'</div>'+
       '<div class="top10-roas">'+sm.label+' '+fmtMetric(sm, sm.get(r.d), false)+'</div>'+
       '<div class="top10-metrics">'+metricsHtml+'</div>'+
     '</div>';
@@ -2443,19 +2436,35 @@ function renderCreativeFlatTable(flatRows, totalD){
   bindColumnDragReorder("creativeTable","creative", renderCreativeView);
 }
 
-function renderCreativeView(){
-  const source = App.filteredRecords;
-  const filtered = App.creativeTypeFilter ? source.filter(r=>r.creativeType===App.creativeTypeFilter) : source;
+function buildCreativeFlatRows(records){
+  const byCreative = groupBy(records, r=>[r.mediaRaw,r.campaign,r.adgroup,r.creative].join("|||"));
+  const creativeMeta = new Map();
+  records.forEach(r=>{
+    const key = [r.mediaRaw,r.campaign,r.adgroup,r.creative].join("|||");
+    if(!creativeMeta.has(key)) creativeMeta.set(key, r);
+  });
+  return [...byCreative.entries()].map(([key,agg])=>{
+    const r = creativeMeta.get(key);
+    return {key, label:r.creative, media:r.mediaDisplay, mediaRaw:r.mediaRaw, campaign:r.campaign, adgroup:r.adgroup, creativeType:r.creativeType, purposeType:r.purposeType, d:derive(agg)};
+  });
+}
 
-  const byType = groupBy(filtered, r=>r.creativeType);
+function renderCreativeView(){
+  // 소재 유형별 요약 / TOP10 섹션은 탭 상단 필터만 적용 (상세 분석의 유형 칩 영향을 받지 않음)
+  const source = App.filteredRecords;
+
+  const byType = groupBy(source, r=>r.creativeType);
   const typeRows = [...byType.entries()].map(([label,agg])=>({label, d:derive(agg)}));
-  const typeTotalD = derive(aggregate(filtered));
+  const typeTotalD = derive(aggregate(source));
   document.getElementById("creativeTypeTableWrap").innerHTML = buildSimpleTable("creativeType","소재유형", typeRows, typeTotalD);
   bindSortHandlers("creativeTypeTableWrap","creativeType", renderCreativeView);
   applyFreezeLayout("creativeTypeTableWrap","creativeTypeTable","creativeTypeFreezeHandle", getGridState("creativeType",1));
   bindFreezeHandleDrag("creativeTypeTableWrap","creativeTypeTable","creativeTypeFreezeHandle", getGridState("creativeType",1));
   bindColumnDragReorder("creativeTypeTable","creativeType", renderCreativeView);
 
+  renderCreativeTop10(buildCreativeFlatRows(source));
+
+  // 소재 상세 분석: 유형 칩은 이 섹션의 데이터에만 적용
   const allTypes = distinctValues(source, "creativeType").sort();
   document.getElementById("creativeTypeChips").innerHTML = allTypes.map(t=>
     '<span class="type-chip'+(App.creativeTypeFilter===t?" active":"")+'" data-type="'+escapeHtml(t)+'">'+escapeHtml(t)+'</span>'
@@ -2464,29 +2473,18 @@ function renderCreativeView(){
     chip.addEventListener("click", ()=>{ App.creativeTypeFilter = chip.dataset.type || null; renderCreativeView(); });
   });
 
-  const byCreative = groupBy(filtered, r=>[r.mediaRaw,r.campaign,r.adgroup,r.creative].join("|||"));
-  const creativeMeta = new Map();
-  filtered.forEach(r=>{
-    const key = [r.mediaRaw,r.campaign,r.adgroup,r.creative].join("|||");
-    if(!creativeMeta.has(key)) creativeMeta.set(key, r);
-  });
-  const flatRows = [...byCreative.entries()].map(([key,agg])=>{
-    const r = creativeMeta.get(key);
-    return {key, label:r.creative, media:r.mediaDisplay, mediaRaw:r.mediaRaw, campaign:r.campaign, adgroup:r.adgroup, creativeType:r.creativeType, purposeType:r.purposeType, d:derive(agg)};
-  });
-
-  renderCreativeTop10(flatRows);
-
-  const totalD = derive(aggregate(filtered));
+  const detailSource = App.creativeTypeFilter ? source.filter(r=>r.creativeType===App.creativeTypeFilter) : source;
+  const detailFlatRows = buildCreativeFlatRows(detailSource);
+  const detailTotalD = derive(aggregate(detailSource));
 
   if(App.creativeGroupMode==="flat"){
-    renderCreativeFlatTable(flatRows, totalD);
+    renderCreativeFlatTable(detailFlatRows, detailTotalD);
   } else {
-    renderCreativeTree(flatRows, totalD);
+    renderCreativeTree(detailFlatRows, detailTotalD);
   }
 
   document.getElementById("exportCreative").onclick = ()=>exportCSV("소재별_분석.csv","소재명",
-    flatRows.map(r=>({label:r.media+" / "+r.campaign+" / "+r.adgroup+" / "+r.label, d:r.d})), totalD);
+    detailFlatRows.map(r=>({label:r.media+" / "+r.campaign+" / "+r.adgroup+" / "+r.label, d:r.d})), detailTotalD);
 
   renderColMgrPopup("creativeColMgrPopup", TABLE_COLUMNS, id=>METRIC_BY_ID[id].label, App.creativeView.visibleCols, renderCreativeView);
 }
@@ -2643,7 +2641,7 @@ function renderActiveView(){
   else if(App.activeView==="history") renderHistoryView();
 }
 
-const FILTER_BAR_HIDDEN_FIELDS = { summary:["sort"], media:["media","sort"], creative:["sort"], history:["purpose","os","campaign"] };
+const FILTER_BAR_HIDDEN_FIELDS = { summary:["sort"], media:["media","sort"], creative:["sort"], history:["purpose","campaign"] };
 function applyFilterBarVisibility(view){
   const hidden = FILTER_BAR_HIDDEN_FIELDS[view] || [];
   document.querySelectorAll(".filter-bar .filter-field").forEach(el=>{
@@ -2718,10 +2716,10 @@ function applyParsedData(parsed){
   App.dateMin = parsed.dateMin;
   App.dateMax = parsed.dateMax;
   App.filtersByView = {
-    summary:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, os:"all", campaign:"all", dateFrom:parsed.dateMin, dateTo:parsed.dateMax },
-    media:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, os:"all", campaign:"all", dateFrom:parsed.dateMin, dateTo:parsed.dateMax },
-    creative:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, os:"all", campaign:"all", dateFrom:parsed.dateMin, dateTo:parsed.dateMax },
-    history:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, os:"all", campaign:"all", dateFrom:parsed.dateMin, dateTo:parsed.dateMax }
+    summary:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, campaign:"all", dateFrom:parsed.dateMin, dateTo:parsed.dateMax },
+    media:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, campaign:"all", dateFrom:parsed.dateMin, dateTo:parsed.dateMax },
+    creative:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, campaign:"all", dateFrom:parsed.dateMin, dateTo:parsed.dateMax },
+    history:{ purposeType:"all", mediaSet:{all:true,set:new Set()}, campaign:"all", dateFrom:parsed.dateMin, dateTo:parsed.dateMax }
   };
   App.cardMetricOverride = {};
   App.expandedGroups = { creative:new Set() };
@@ -2792,7 +2790,6 @@ function bindColMgrToggle(btnId, popupId){
 
 function initFilterBar(){
   document.getElementById("f-purpose").addEventListener("change", e=>{ currentFilters().purposeType=e.target.value; onFiltersChanged(); });
-  document.getElementById("f-os").addEventListener("change", e=>{ currentFilters().os=e.target.value; onFiltersChanged(); });
   document.getElementById("f-campaign").addEventListener("change", e=>{ currentFilters().campaign=e.target.value; onFiltersChanged(); });
   document.querySelectorAll("[data-abbrev]").forEach(btn=>{
     btn.addEventListener("click", ()=>{
@@ -2820,11 +2817,20 @@ function initFilterBar(){
   document.getElementById("refreshHistoryBtn").addEventListener("click", loadHistoryData);
   registerCustomSelect("purpose", "f-purpose", "purposeSelectWrap", "f-purpose-trigger", "f-purpose-panel");
   registerCustomSelect("media", "f-media", "mediaSelectWrap", "f-media-trigger", "f-media-panel", true);
-  registerCustomSelect("os", "f-os", "osSelectWrap", "f-os-trigger", "f-os-panel");
   registerCustomSelect("campaign", "f-campaign", "campaignSelectWrap", "f-campaign-trigger", "f-campaign-panel");
   registerCustomSelect("historySort", "f-historySort", "historySortSelectWrap", "f-historySort-trigger", "f-historySort-panel");
   fillCustomSelect("historySort", [{value:"desc",label:"최신순"},{value:"asc",label:"오래된순"}], App.historySortOrder);
   document.getElementById("f-historySort").addEventListener("change", e=>{ App.historySortOrder = e.target.value; renderHistoryView(); });
+  document.getElementById("resetFiltersBtn").addEventListener("click", ()=>{
+    const f = currentFilters();
+    f.purposeType = "all";
+    f.mediaSet = {all:true, set:new Set()};
+    f.campaign = "all";
+    f.dateFrom = App.dateMin;
+    f.dateTo = App.dateMax;
+    renderFilterBar();
+    onFiltersChanged();
+  });
 
   document.addEventListener("click", (e)=>{
     const calPop = document.getElementById("calendarPopup");
