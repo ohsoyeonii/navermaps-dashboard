@@ -2145,10 +2145,8 @@ function renderDonut(canvasId, labels, data){
 
       // 라벨은 조각의 실제 각도(자연스러운 순서)를 유지하면서, 같은 쪽(좌/우) 안에서는
       // 균등한 세로 간격으로 재배치합니다 → 겹침 없음, 선끼리 교차하지 않음.
-      // elbow(꺾이는 지점)는 라벨과 같은 높이의 고정 열에 위치시켜, 마지막 구간은
-      // 항상 수평선이 되도록 하고(교차 불가), 첫 구간(anchor→elbow)만 순서를 유지해 연결합니다.
+      // 선은 조각 가장자리(anchor)에서 라벨까지 꺾임 없는 하나의 직선으로 연결합니다.
       const gap = 27;
-      const elbowX = { true: cx+outerRadius+16, false: cx-outerRadius-16 };
       const labelX = { true: cx+outerRadius+38, false: cx-outerRadius-38 };
       [true,false].forEach(side=>{
         const list = items.filter(it=>it.isRight===side).sort((a,b)=>a.naturalY-b.naturalY);
@@ -2167,14 +2165,12 @@ function renderDonut(canvasId, labels, data){
 
       ctx.save();
       items.forEach(it=>{
-        const ex = elbowX[it.isRight];
         const lx = labelX[it.isRight];
         const textX = lx + (it.isRight ? 6 : -6);
         ctx.strokeStyle = lineColor;
         ctx.lineWidth = 1.25;
         ctx.beginPath();
         ctx.moveTo(it.anchorX, it.anchorY);
-        ctx.lineTo(ex, it.labelY);
         ctx.lineTo(lx, it.labelY);
         ctx.stroke();
 
