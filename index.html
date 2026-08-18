@@ -273,7 +273,7 @@ input[type=file]{display:none;}
 .summary-flex{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;}
 .mini-chart-box{flex:1;min-width:260px;background:var(--bg);border-radius:10px;padding:12px;}
 .mini-chart-box h4{margin:0 0 8px;font-size:12.5px;font-weight:600;}
-.mini-chart-canvas-wrap{height:236px;}
+.mini-chart-canvas-wrap{height:320px;}
 
 .table-scroll{overflow-x:auto;position:relative;border:1px solid var(--border);border-radius:12px;}
 #creativeTableWrap{max-height:620px;overflow-y:auto;}
@@ -2455,118 +2455,144 @@ function renderDonut(canvasId, labels, data){
         const props = arc.getProps(["startAngle","endAngle","outerRadius","x","y"], true);
         outerRadius = props.outerRadius; cx = props.x; cy = props.y;
         const mid = (props.startAngle+props.endAngle)/2;
-        const cos = Math.cos(mid), sin = Math.sin(mid);
-        const isRight = cos >= 0;
-        const anchorX = props.x + cos*(props.outerRadius+2);
-        const anchorY = props.y + sin*(props.outerRadius+2);
-        const nubX = props.x + cos*(props.outerRadius+14);
-        const nubY = props.y + sin*(props.outerRadius+14);
-        items.push({ pct, val, isRight, anchorX, anchorY, nubX, nubY, naturalY:anchorY });
+        items.push({ pct, val, mid, anchorX: props.x+Math.cos(mid)*(props.outerRadius+2), anchorY: props.y+Math.sin(mid)*(props.outerRadius+2) });
       });
       if(!items.length){ return; }
 
-      // 라벨은 조각의 실제 각도(자연스러운 순서)를 유지하면서, 같은 쪽(좌/우) 안에서는
-      // 균등한 세로 간격으로 재배치합니다 → 겹침 없음, 선끼리 교차하지 않음.
-      // 선의 시작 구간(anchor→nub)은 조각 자신의 각도를 그대로 유지해, 그래프에서
-      // 자연스럽게 뻗어나오는 것처럼 보이게 하고, 그 다음 라벨까지 이어줍니다.
-      const baseGap = 27, compactGap = 16;
-      const labelX = { true: cx+outerRadius+18, false: cx-outerRadius-18 };
-      [true,false].forEach(side=>{
-        let list = items.filter(it=>it.isRight===side).sort((a,b)=>a.naturalY-b.naturalY);
-        if(!list.length) return;
-        let gap = baseGap, compact = false;
-        if(chartArea && list.length>1){
-          const available = (chartArea.bottom-16) - (chartArea.top+16);
-          if(available/(list.length-1) < baseGap){
-            compact = true;
-            // 한 줄(%·금액) 표기로도 다 못 채우면, 값이 작은 라벨부터 생략합니다
-            // (조각 자체는 도넛에 그대로 남고, 외부 라벨/선만 생략됩니다).
-            while(list.length>1 && available/(list.length-1) < compactGap){
-              let minIdx = 0;
-              for(let k=1;k<list.length;k++) if(list[k].pct<list[minIdx].pct) minIdx = k;
-              list[minIdx].hidden = true;
-              list = list.filter((_,k)=>k!==minIdx);
-            }
-            gap = list.length>1 ? Math.max(compactGap, Math.min(baseGap, available/(list.length-1))) : baseGap;
-          }
-        }
-        const n = list.length;
-        const avgY = list.reduce((s,it)=>s+it.naturalY,0)/n;
-        const slotYs = list.map((it,idx)=> avgY + (idx-(n-1)/2)*gap);
-        if(chartArea){
-          const top = chartArea.top+16, bottom = chartArea.bottom-16;
-          let shift = 0;
-          if(slotYs[0] < top) shift = top-slotYs[0];
-          else if(slotYs[n-1] > bottom) shift = bottom-slotYs[n-1];
-          if(shift) for(let k=0;k<n;k++) slotYs[k] += shift;
-        }
-        list.forEach(it=>{ it.compact = compact; it.useNub = true; });
+      // 라벨은 왼쪽/오른쪽으로 묶지 않고, 조각 자신의 각도를 기준으로 도넛 둘레
+      // 전체(위/아래 포함)에 자유롭게 배치합니다. 겹치지 않도록 서로 최소 각도
+      // 간격만 확보해서, 선이 그래프에서 자연스럽게 뻗어나오는 모양이 됩니다.
+      const labelRadius = outerRadius + 42;
+      let list = items.slice().sort((a,b)=>a.mid-b.mid);
 
-        // 모든 선이 조각 자신의 각도에서 자연스럽게 뻗어나오는 모양(anchor→nub)을
-        // 유지하도록 하되, 촘촘히 몰린 조각들 때문에 이 상태로는 선끼리 교차하는 경우
-        // 라벨 자리(slot) 배정 순서를 자연스러운 순서에서 최소한만 바꿔 교차를 없앱니다.
-        function segCross(p1,p2,p3,p4){
-          const cr=(o,a,b)=>(a.x-o.x)*(b.y-o.y)-(a.y-o.y)*(b.x-o.x);
-          const d1=cr(p3,p4,p1), d2=cr(p3,p4,p2), d3=cr(p1,p2,p3), d4=cr(p1,p2,p4);
-          return ((d1>0&&d2<0)||(d1<0&&d2>0)) && ((d3>0&&d4<0)||(d3<0&&d4>0));
-        }
-        function permutations(arr){
-          if(arr.length<=1) return [arr];
-          const res=[];
-          arr.forEach((v,i)=>{
-            const rest = arr.slice(0,i).concat(arr.slice(i+1));
-            permutations(rest).forEach(p=>res.push([v].concat(p)));
-          });
-          return res;
-        }
-        const lx = labelX[side];
-        const crossesAny = assign => {
-          for(let i=0;i<n;i++){
-            for(let j=i+1;j<n;j++){
-              const pi={x:list[i].nubX,y:list[i].nubY}, pj={x:list[j].nubX,y:list[j].nubY};
-              const li={x:lx,y:slotYs[assign[i]]}, lj={x:lx,y:slotYs[assign[j]]};
-              if(segCross(pi,li,pj,lj)) return true;
+      // 서로 실제로 겹칠 만큼 가까운 조각들끼리만 "묶음(cluster)"으로 모아서 그 안에서만
+      // 균등하게 재배치합니다. 이미 충분히 떨어져 있는 조각은 자기 각도를 그대로 씁니다
+      // → 대부분의 라벨은 원래 위치 그대로, 정말 촘촘한 곳만 벌어집니다.
+      function declutter(naturalVals, minGap){
+        let clusters = naturalVals.map(v=>({sum:v, count:1}));
+        let merged = true;
+        while(merged){
+          merged = false;
+          for(let i=0;i<clusters.length-1;i++){
+            const a = clusters[i], b = clusters[i+1];
+            const aCenter = a.sum/a.count, bCenter = b.sum/b.count;
+            const requiredGap = (1 + (a.count-1)/2 + (b.count-1)/2) * minGap;
+            if(bCenter - aCenter < requiredGap){
+              clusters[i] = {sum:a.sum+b.sum, count:a.count+b.count};
+              clusters.splice(i+1,1);
+              merged = true;
+              break;
             }
           }
-          return false;
-        };
-        let assign = list.map((_,i)=>i);
-        if(n>1 && n<=7 && crossesAny(assign)){
-          const perms = permutations(list.map((_,i)=>i))
-            .sort((a,b)=>{
-              const da=a.reduce((s,v,i)=>s+Math.abs(v-i),0), db=b.reduce((s,v,i)=>s+Math.abs(v-i),0);
-              return da-db;
-            });
-          const found = perms.find(p=>!crossesAny(p));
-          if(found) assign = found;
         }
-        list.forEach((it,i)=>{ it.labelY = slotYs[assign[i]]; });
+        const result = [];
+        clusters.forEach(c=>{
+          const center = c.sum/c.count;
+          for(let k=0;k<c.count;k++) result.push(center + (k-(c.count-1)/2)*minGap);
+        });
+        return result;
+      }
+
+      let gapAngle = 26/labelRadius, compact = false;
+      const fullSpan = Math.PI*2 - 0.001;
+      if(list.length>1 && (list.length-1)*gapAngle > fullSpan){
+        // 한 줄(%·금액) 표기로도 다 못 채우면, 값이 작은 라벨부터 생략합니다
+        // (조각 자체는 도넛에 그대로 남고, 외부 라벨/선만 생략됩니다).
+        compact = true;
+        gapAngle = 15/labelRadius;
+        while(list.length>1 && (list.length-1)*gapAngle > fullSpan){
+          let minIdx = 0;
+          for(let k=1;k<list.length;k++) if(list[k].pct<list[minIdx].pct) minIdx = k;
+          list[minIdx].hidden = true;
+          list = list.filter((_,k)=>k!==minIdx);
+        }
+      }
+      const n = list.length;
+      const declutteredAngles = declutter(list.map(it=>it.mid), gapAngle);
+      list.forEach((it,idx)=>{ it.compact = compact; it.labelAngle = declutteredAngles[idx]; });
+
+      // 계산된 각도로 라벨 위치를 정하되, 차트 영역을 벗어나는 항목은 반지름만
+      // 줄여서 안쪽으로 당깁니다(각도는 그대로 유지 → 다른 라벨과의 배치 순서 불변).
+      list.forEach(it=>{
+        const c = Math.cos(it.labelAngle), s = Math.sin(it.labelAngle);
+        let r = labelRadius;
+        if(chartArea){
+          const marginX = 45, marginY = it.compact ? 12 : 20;
+          if(c>0.02) r = Math.min(r, (chartArea.right-marginX-cx)/c);
+          else if(c<-0.02) r = Math.min(r, (cx-chartArea.left-marginX)/-c);
+          if(s>0.02) r = Math.min(r, (chartArea.bottom-marginY-cy)/s);
+          else if(s<-0.02) r = Math.min(r, (cy-chartArea.top-marginY)/-s);
+          r = Math.max(r, outerRadius+20);
+        }
+        it.labelX = cx+c*r; it.labelY = cy+s*r;
       });
 
+      // 조각들이 촘촘히 몰려 있어 이 상태로는 선끼리 교차하는 경우, 라벨 자리(위치) 배정
+      // 순서를 자연스러운 순서에서 최소한만 바꿔 교차를 없앱니다.
+      function segCross(p1,p2,p3,p4){
+        const cr=(o,a,b)=>(a.x-o.x)*(b.y-o.y)-(a.y-o.y)*(b.x-o.x);
+        const d1=cr(p3,p4,p1), d2=cr(p3,p4,p2), d3=cr(p1,p2,p3), d4=cr(p1,p2,p4);
+        return ((d1>0&&d2<0)||(d1<0&&d2>0)) && ((d3>0&&d4<0)||(d3<0&&d4>0));
+      }
+      function permutations(arr){
+        if(arr.length<=1) return [arr];
+        const res=[];
+        arr.forEach((v,i)=>{
+          const rest = arr.slice(0,i).concat(arr.slice(i+1));
+          permutations(rest).forEach(p=>res.push([v].concat(p)));
+        });
+        return res;
+      }
+      const labelPositions = list.map(it=>({x:it.labelX,y:it.labelY}));
+      const crossesAny = assign => {
+        for(let i=0;i<n;i++){
+          for(let j=i+1;j<n;j++){
+            const pi={x:list[i].anchorX,y:list[i].anchorY}, pj={x:list[j].anchorX,y:list[j].anchorY};
+            if(segCross(pi,labelPositions[assign[i]],pj,labelPositions[assign[j]])) return true;
+          }
+        }
+        return false;
+      };
+      let assign = list.map((_,i)=>i);
+      if(n>1 && n<=7 && crossesAny(assign)){
+        const perms = permutations(list.map((_,i)=>i))
+          .sort((a,b)=>{
+            const da=a.reduce((s,v,i)=>s+Math.abs(v-i),0), db=b.reduce((s,v,i)=>s+Math.abs(v-i),0);
+            return da-db;
+          });
+        const found = perms.find(p=>!crossesAny(p));
+        if(found) assign = found;
+      }
+      list.forEach((it,i)=>{ const p=labelPositions[assign[i]]; it.labelX=p.x; it.labelY=p.y; });
+
       ctx.save();
-      items.forEach(it=>{
+      list.forEach(it=>{
         if(it.hidden) return;
-        const lx = labelX[it.isRight];
-        const textX = lx + (it.isRight ? 6 : -6);
+        const vx = it.labelX-cx, vy = it.labelY-cy;
+        const vlen = Math.hypot(vx,vy) || 1;
+        const ux = vx/vlen, uy = vy/vlen;
+        const align = ux>0.15 ? "left" : (ux<-0.15 ? "right" : "center");
+        const nudge = 9;
+        const textX = it.labelX + ux*nudge;
+        const textY = it.labelY + uy*nudge;
         ctx.strokeStyle = lineColor;
         ctx.lineWidth = 1.25;
         ctx.beginPath();
         ctx.moveTo(it.anchorX, it.anchorY);
-        if(it.useNub) ctx.lineTo(it.nubX, it.nubY);
-        ctx.lineTo(lx, it.labelY);
+        ctx.lineTo(it.labelX, it.labelY);
         ctx.stroke();
 
-        ctx.textAlign = it.isRight ? "left" : "right";
+        ctx.textAlign = align;
         ctx.textBaseline = "middle";
         ctx.fillStyle = textColor;
         if(it.compact){
           ctx.font = "700 11px Pretendard, sans-serif";
-          ctx.fillText((it.pct*100).toFixed(1)+"% · "+fmtWonAbbrev(it.val, true), textX, it.labelY);
+          ctx.fillText((it.pct*100).toFixed(1)+"% · "+fmtWonAbbrev(it.val, true), textX, textY);
         } else {
           ctx.font = "700 12px Pretendard, sans-serif";
-          ctx.fillText((it.pct*100).toFixed(1)+"%", textX, it.labelY-7);
+          ctx.fillText((it.pct*100).toFixed(1)+"%", textX, textY-7);
           ctx.font = "400 10.5px Pretendard, sans-serif";
-          ctx.fillText(fmtWonAbbrev(it.val, true), textX, it.labelY+7);
+          ctx.fillText(fmtWonAbbrev(it.val, true), textX, textY+7);
         }
       });
       ctx.restore();
@@ -2576,8 +2602,8 @@ function renderDonut(canvasId, labels, data){
     type:"doughnut",
     data:{ labels, datasets:[{ data, backgroundColor: labels.map(l=>colorMap[l]||"#94A3B8"), borderWidth:0, hoverOffset:6 }] },
     options:{
-      responsive:true, maintainAspectRatio:false, cutout:"62%",
-      layout:{ padding:{top:50,bottom:36,left:56,right:56} },
+      responsive:true, maintainAspectRatio:false, cutout:"62%", radius:"55%",
+      layout:{ padding:{top:8,bottom:8,left:8,right:8} },
       plugins:{
         legend:{ position:"bottom", labels:{ boxWidth:10, boxHeight:10, padding:14, color:textColor, font:{size:12,weight:"500"} } },
         tooltip:{ callbacks:{ label:(ctx)=> ctx.label+": "+fmtWon(ctx.parsed)+" ("+(total?(ctx.parsed/total*100).toFixed(1):"0")+"%)" } }
