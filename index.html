@@ -290,7 +290,10 @@ table.data-table tr.group-row{cursor:pointer;background:var(--th-bg);}
 table.data-table tr.group-row td{font-weight:600;}
 table.perf-table tr.group-row{background:var(--card-bg);}
 #campaignPerfTable tr.total-row td,#campaignPerfTable tr.group-row td,
-#mediaCampaignTable tr.total-row td,#mediaCampaignTable tr.group-row td{font-weight:400;}
+#mediaCampaignTable tr.total-row td,#mediaCampaignTable tr.group-row td,
+#weeklyPerfTable tr.total-row td,#weeklyPerfTable tr.group-row td,
+#dailyPerfTable tr.total-row td,#dailyPerfTable tr.group-row td,
+#mediaTargetTable tr.total-row td,#mediaTargetTable tr.group-row td{font-weight:400;}
 table.data-table tr:hover td{background:var(--primary-soft);}
 table.data-table tr.total-row:hover td, table.data-table tr.group-row:hover td{background:var(--th-bg);}
 table.perf-table th,table.perf-table td{text-align:center;}
@@ -551,6 +554,28 @@ th.col-drop-after{box-shadow:inset -3px 0 0 0 var(--primary);}
             </div>
             <div class="table-scroll" id="campaignPerfTableWrap"></div>
           </div>
+
+          <div class="section-card">
+            <div class="section-header">📆 주별 성과
+              <div class="sh-actions">
+                <button class="btn small" id="weeklyColMgrBtn">⚙ 열 관리</button>
+                <div class="colmgr-popup" id="weeklyColMgrPopup" hidden></div>
+                <button class="btn small" id="exportWeekly">CSV 내보내기</button>
+              </div>
+            </div>
+            <div class="table-scroll" id="weeklyPerfTableWrap"></div>
+          </div>
+
+          <div class="section-card">
+            <div class="section-header">🗓️ 일별 성과
+              <div class="sh-actions">
+                <button class="btn small" id="dailyColMgrBtn">⚙ 열 관리</button>
+                <div class="colmgr-popup" id="dailyColMgrPopup" hidden></div>
+                <button class="btn small" id="exportDaily">CSV 내보내기</button>
+              </div>
+            </div>
+            <div class="table-scroll" id="dailyPerfTableWrap"></div>
+          </div>
         </section>
 
         <!-- ================= MEDIA VIEW ================= -->
@@ -616,6 +641,17 @@ th.col-drop-after{box-shadow:inset -3px 0 0 0 var(--primary);}
               </div>
             </div>
             <div class="table-scroll" id="mediaCampaignTableWrap"></div>
+          </div>
+
+          <div class="section-card" id="mediaTargetSectionCard">
+            <div class="section-header">🎯 타겟별 분석
+              <div class="sh-actions">
+                <button class="btn small" id="targetColMgrBtn">⚙ 열 관리</button>
+                <div class="colmgr-popup" id="targetColMgrPopup" hidden></div>
+                <button class="btn small" id="exportTarget">CSV 내보내기</button>
+              </div>
+            </div>
+            <div class="table-scroll" id="mediaTargetTableWrap"></div>
           </div>
         </section>
 
@@ -836,7 +872,8 @@ const App = {
   chartAxes:{ bar:"costGross", line1:"installs", line2:"purchase" },
   mediaChartAxes:{ bar:"costGross", line1:"installs", line2:"purchase" },
   cardMetricOverride:{},
-  sort:{ media:{col:"costGross",dir:"desc"}, creative:{col:"costGross",dir:"desc"}, creativeType:{col:"costGross",dir:"desc"}, campaignPerf:{col:"costGross",dir:"desc"}, mediaCampaign:{col:"costGross",dir:"desc"} },
+  sort:{ media:{col:"costGross",dir:"desc"}, creative:{col:"costGross",dir:"desc"}, creativeType:{col:"costGross",dir:"desc"}, campaignPerf:{col:"costGross",dir:"desc"}, mediaCampaign:{col:"costGross",dir:"desc"},
+    weeklyPerf:{col:"__period",dir:"desc"}, dailyPerf:{col:"__period",dir:"desc"}, mediaTarget:{col:"costGross",dir:"desc"} },
   expandedGroups:{ creative:new Set() },
   creativeGroupMode:"flat",
   creativeTypeFilter:null,
@@ -854,6 +891,9 @@ const App = {
   cal:{ open:false, viewYear:null, viewMonth:null, selStart:null, selEnd:null },
   campaignPerf:{ visibleCols:new Set(CAMPAIGN_PERF_COLUMNS), expandedMedia:new Set() },
   mediaView:{ toggleMedia:{all:true,set:new Set()}, visibleCols:new Set(CAMPAIGN_PERF_COLUMNS), expandedMedia:new Set() },
+  weeklyPerf:{ visibleCols:new Set(CAMPAIGN_PERF_COLUMNS), expandedGroups:new Set() },
+  dailyPerf:{ visibleCols:new Set(CAMPAIGN_PERF_COLUMNS), expandedGroups:new Set() },
+  mediaTargetView:{ visibleCols:new Set(CAMPAIGN_PERF_COLUMNS), expandedMedia:new Set() },
   _mediaColorMap:null,
   grid:{},
   mainDataStatus:"idle"
@@ -1505,6 +1545,8 @@ function renderSummaryView(){
   renderChartAxisSelectors();
   renderTrendChart();
   renderCampaignPerfTable();
+  renderPeriodPerfTable("weekly");
+  renderPeriodPerfTable("daily");
 }
 
 /* ===================== Campaign Performance table (Summary) ===================== */
@@ -1654,6 +1696,163 @@ function renderCampaignPerfTable(){
   };
 
   renderColMgrPopup("colMgrPopup", CAMPAIGN_PERF_COLUMNS, campaignPerfLabel, App.campaignPerf.visibleCols, renderCampaignPerfTable);
+}
+
+/* ===================== Weekly / Daily Performance tables (Summary) ===================== */
+
+const PERIOD_PERF_CONFIGS = {
+  weekly:{
+    stateKey:"weeklyPerf", gridKey:"weeklyPerf", sortKey:"weeklyPerf",
+    wrapId:"weeklyPerfTableWrap", tableId:"weeklyPerfTable", freezeId:"weeklyPerfFreezeHandle",
+    colMgrPopupId:"weeklyColMgrPopup", exportBtnId:"exportWeekly", exportFileName:"주별_성과.csv",
+    periodLabel:"주차",
+    skip:r=>!(r.year>=2000),
+    keyOf:r=>(r.year||"-")+"-"+(r.week||"-"),
+    labelOf:g=>{
+      const base = (g.year&&g.week) ? g.year+"-"+g.week : "(미지정)";
+      return (g.minDate&&g.maxDate) ? base+" ("+toISODate(g.minDate)+" ~ "+toISODate(g.maxDate)+")" : base;
+    }
+  },
+  daily:{
+    stateKey:"dailyPerf", gridKey:"dailyPerf", sortKey:"dailyPerf",
+    wrapId:"dailyPerfTableWrap", tableId:"dailyPerfTable", freezeId:"dailyPerfFreezeHandle",
+    colMgrPopupId:"dailyColMgrPopup", exportBtnId:"exportDaily", exportFileName:"일별_성과.csv",
+    periodLabel:"일자",
+    skip:r=>!r.date,
+    keyOf:r=>toISODate(r.date),
+    labelOf:g=>g.key
+  }
+};
+
+function periodPerfGroups(kind){
+  const cfg = PERIOD_PERF_CONFIGS[kind];
+  const groups = new Map();
+  App.filteredRecords.forEach(r=>{
+    if(cfg.skip && cfg.skip(r)) return;
+    const key = cfg.keyOf(r);
+    if(!groups.has(key)) groups.set(key, {key, year:r.year, week:r.week, minDate:r.date, maxDate:r.date, medias:new Map()});
+    const g = groups.get(key);
+    if(r.date){ if(!g.minDate||r.date<g.minDate) g.minDate=r.date; if(!g.maxDate||r.date>g.maxDate) g.maxDate=r.date; }
+    if(!g.medias.has(r.mediaRaw)) g.medias.set(r.mediaRaw, newAggBucket());
+    addToAgg(g.medias.get(r.mediaRaw), r);
+  });
+  return [...groups.values()].map(g=>{
+    const groupAgg = newAggBucket();
+    const mediaRows = [...g.medias.entries()].map(([mediaRaw,agg])=>{
+      Object.keys(groupAgg).forEach(k=>groupAgg[k]+=agg[k]||0);
+      return {mediaRaw, media:mediaLabel(mediaRaw), d:derive(agg)};
+    });
+    return {key:g.key, year:g.year, week:g.week, minDate:g.minDate, maxDate:g.maxDate, groupD:derive(groupAgg), mediaRows, label:cfg.labelOf(g)};
+  });
+}
+
+function renderPeriodPerfTable(kind){
+  const cfg = PERIOD_PERF_CONFIGS[kind];
+  const state = App[cfg.stateKey];
+  const totalD = derive(aggregate(App.filteredRecords));
+  const gridState = getGridState(cfg.gridKey, 1);
+  const leadCols = [{id:"__period", label:cfg.periodLabel, lead:true, alignLeft:true}];
+  const metricCols = CAMPAIGN_PERF_COLUMNS.filter(id=>state.visibleCols.has(id)).map(id=>({id, label:campaignPerfLabel(id), lead:false, alignLeft:false}));
+  const cols = applyColumnOrder(leadCols.concat(metricCols), gridState);
+  const sortState = App.sort[cfg.sortKey] || (App.sort[cfg.sortKey]={col:"__period",dir:"desc"});
+
+  const groups = periodPerfGroups(kind);
+  const periodAsc = sortState.col==="__period" && sortState.dir==="asc";
+  groups.sort((a,b)=>{
+    const av = a.minDate ? a.minDate.getTime() : -Infinity;
+    const bv = b.minDate ? b.minDate.getTime() : -Infinity;
+    return periodAsc ? av-bv : bv-av;
+  });
+
+  function sortMediaRows(rows){
+    if(!sortState.col || sortState.col==="__period") return rows;
+    const m = METRIC_BY_ID[sortState.col];
+    if(!m) return rows;
+    return rows.slice().sort((a,b)=>{
+      const va=m.get(a.d), vb=m.get(b.d);
+      const na=(va===null||va===undefined)?-Infinity:va, nb=(vb===null||vb===undefined)?-Infinity:vb;
+      return sortState.dir==="asc" ? na-nb : nb-na;
+    });
+  }
+
+  const colMinWidth = id => campaignPerfColMinWidth(id==="__period"?"__campaign":id);
+
+  let html = freezeHandleHTML(cfg.freezeId)+'<table class="data-table perf-table" id="'+cfg.tableId+'"><thead><tr>';
+  cols.forEach(c=>{
+    const arrow = sortState.col===c.id ? (sortState.dir==="asc"?"▲":"▼") : "";
+    html += '<th class="'+(c.alignLeft?"left":"")+'" data-sortcol="'+c.id+'" data-colid="'+c.id+'" style="min-width:'+colMinWidth(c.id)+'px">'+escapeHtml(c.label)+' <span class="arrow">'+arrow+'</span></th>';
+  });
+  html += '</tr></thead><tbody>';
+  const tdOpen = c => '<td class="'+(c.alignLeft?"left":"")+'" style="min-width:'+colMinWidth(c.id)+'px">';
+  html += '<tr class="total-row">';
+  cols.forEach(c=>{
+    if(c.id==="__period") html += tdOpen(c)+'Total</td>';
+    else { const m=METRIC_BY_ID[c.id]; html += tdOpen(c)+fmtMetric(m, m.get(totalD), false)+'</td>'; }
+  });
+  html += '</tr>';
+
+  groups.forEach(g=>{
+    const expanded = state.expandedGroups.has(g.key);
+    html += '<tr class="group-row" data-group="'+escapeHtml(g.key)+'">';
+    cols.forEach(c=>{
+      if(c.id==="__period"){ html += tdOpen(c)+(expanded?"▾":"▸")+' '+escapeHtml(g.label)+' ('+g.mediaRows.length+')</td>'; return; }
+      const m=METRIC_BY_ID[c.id]; html += tdOpen(c)+fmtMetric(m, m.get(g.groupD), false)+'</td>';
+    });
+    html += '</tr>';
+    if(expanded){
+      sortMediaRows(g.mediaRows).forEach(row=>{
+        html += '<tr>';
+        cols.forEach(c=>{
+          if(c.id==="__period") html += tdOpen(c)+escapeHtml(row.media)+'</td>';
+          else { const m=METRIC_BY_ID[c.id]; html += tdOpen(c)+fmtMetric(m, m.get(row.d), false)+'</td>'; }
+        });
+        html += '</tr>';
+      });
+    }
+  });
+  html += '</tbody></table>';
+
+  const wrap = document.getElementById(cfg.wrapId);
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll("tr.group-row").forEach(tr=>{
+    tr.addEventListener("click", ()=>{
+      const g = tr.dataset.group;
+      if(state.expandedGroups.has(g)) state.expandedGroups.delete(g);
+      else state.expandedGroups.add(g);
+      renderPeriodPerfTable(kind);
+    });
+  });
+
+  bindSortHandlers(cfg.wrapId, cfg.sortKey, ()=>renderPeriodPerfTable(kind));
+  applyFreezeLayout(cfg.wrapId, cfg.tableId, cfg.freezeId, gridState);
+  bindFreezeHandleDrag(cfg.wrapId, cfg.tableId, cfg.freezeId, gridState);
+  bindColumnDragReorder(cfg.tableId, cfg.gridKey, ()=>renderPeriodPerfTable(kind));
+
+  document.getElementById(cfg.exportBtnId).onclick = ()=>{
+    const headerCols = cols.map(c=>c.label);
+    const lines = [headerCols.join(",")];
+    const totalLine = cols.map(c=>{
+      if(c.id==="__period") return "Total";
+      const m=METRIC_BY_ID[c.id]; return m.get(totalD);
+    });
+    lines.push(totalLine.map(csvCell).join(","));
+    groups.forEach(g=>{
+      sortMediaRows(g.mediaRows).forEach(row=>{
+        const line = cols.map(c=>{
+          if(c.id==="__period") return row.media;
+          const m=METRIC_BY_ID[c.id]; return m.get(row.d);
+        });
+        lines.push(line.map(csvCell).join(","));
+      });
+    });
+    const csv = "﻿"+lines.join("\r\n");
+    const blob = new Blob([csv],{type:"text/csv;charset=utf-8;"});
+    const a = document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=cfg.exportFileName;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  };
+
+  renderColMgrPopup(cfg.colMgrPopupId, CAMPAIGN_PERF_COLUMNS, campaignPerfLabel, state.visibleCols, ()=>renderPeriodPerfTable(kind));
 }
 
 function applyFreezeLayout(wrapId, tableId, handleId, state){
@@ -2087,6 +2286,129 @@ function renderMediaCampaignTable(){
   renderColMgrPopup("mediaColMgrPopup", CAMPAIGN_PERF_COLUMNS, campaignPerfLabel, App.mediaView.visibleCols, renderMediaCampaignTable);
 }
 
+/* ===================== Target (Ad group) Analysis table (Media view) ===================== */
+
+function mediaTargetColumns(){
+  const leadCols = [{id:"__target", label:"타겟(광고그룹)", alignLeft:true}];
+  const metricCols = CAMPAIGN_PERF_COLUMNS.filter(id=>App.mediaTargetView.visibleCols.has(id)).map(id=>({id, label:campaignPerfLabel(id), alignLeft:false}));
+  return leadCols.concat(metricCols);
+}
+
+function renderMediaTargetTable(){
+  const source = mediaCampaignSourceRecords();
+  const gridState = getGridState("mediaTarget", 1);
+  const cols = applyColumnOrder(mediaTargetColumns(), gridState);
+  const totalD = derive(aggregate(source));
+
+  const mediaGroups = new Map();
+  source.forEach(r=>{
+    if(!mediaGroups.has(r.mediaRaw)) mediaGroups.set(r.mediaRaw, {label:r.mediaDisplay, targets:new Map()});
+    const grp = mediaGroups.get(r.mediaRaw);
+    if(!grp.targets.has(r.adgroup)) grp.targets.set(r.adgroup, newAggBucket());
+    addToAgg(grp.targets.get(r.adgroup), r);
+  });
+
+  const groupList = [...mediaGroups.entries()].map(([mediaRaw,grp])=>{
+    const groupAgg = newAggBucket();
+    const targetRows = [...grp.targets.entries()].map(([target,agg])=>{
+      Object.keys(groupAgg).forEach(k=>groupAgg[k]+=agg[k]||0);
+      return {target, media:grp.label, mediaRaw, d:derive(agg)};
+    });
+    return {mediaRaw, label:grp.label, groupD:derive(groupAgg), targetRows};
+  }).sort((a,b)=>b.groupD.costGross-a.groupD.costGross);
+
+  const sortState = App.sort.mediaTarget;
+  function sortRows(rows){
+    if(!sortState.col) return rows;
+    if(sortState.col==="__target"){
+      return rows.slice().sort((a,b)=> sortState.dir==="asc" ? String(a.target).localeCompare(String(b.target)) : String(b.target).localeCompare(String(a.target)));
+    }
+    const m = METRIC_BY_ID[sortState.col];
+    if(!m) return rows;
+    return rows.slice().sort((a,b)=>{
+      const va=m.get(a.d), vb=m.get(b.d);
+      const na=(va===null||va===undefined)?-Infinity:va, nb=(vb===null||vb===undefined)?-Infinity:vb;
+      return sortState.dir==="asc" ? na-nb : nb-na;
+    });
+  }
+
+  let html = freezeHandleHTML("targetFreezeHandle")+'<table class="data-table perf-table" id="mediaTargetTable"><thead><tr>';
+  cols.forEach(c=>{
+    const arrow = sortState.col===c.id ? (sortState.dir==="asc"?"▲":"▼") : "";
+    html += '<th class="'+(c.alignLeft?"left":"")+'" data-sortcol="'+c.id+'" data-colid="'+c.id+'">'+escapeHtml(c.label)+' <span class="arrow">'+arrow+'</span></th>';
+  });
+  html += '</tr></thead><tbody>';
+  html += '<tr class="total-row">';
+  cols.forEach(c=>{
+    if(c.id==="__target") html += '<td class="left">Total</td>';
+    else { const m=METRIC_BY_ID[c.id]; html += '<td>'+fmtMetric(m, m.get(totalD), false)+'</td>'; }
+  });
+  html += '</tr>';
+
+  groupList.forEach(grp=>{
+    const expanded = App.mediaTargetView.expandedMedia.has(grp.mediaRaw);
+    html += '<tr class="group-row" data-group="'+escapeHtml(grp.mediaRaw)+'">';
+    cols.forEach(c=>{
+      if(c.id==="__target"){ html += '<td class="left">'+(expanded?"▾":"▸")+' '+escapeHtml(grp.label)+' ('+grp.targetRows.length+')</td>'; return; }
+      const m = METRIC_BY_ID[c.id]; html += '<td>'+fmtMetric(m, m.get(grp.groupD), false)+'</td>';
+    });
+    html += '</tr>';
+    if(expanded){
+      sortRows(grp.targetRows).forEach(row=>{
+        html += '<tr>';
+        cols.forEach(c=>{
+          if(c.id==="__target") html += '<td class="left">'+escapeHtml(row.target)+'</td>';
+          else { const m=METRIC_BY_ID[c.id]; html += '<td>'+fmtMetric(m, m.get(row.d), false)+'</td>'; }
+        });
+        html += '</tr>';
+      });
+    }
+  });
+  html += '</tbody></table>';
+
+  document.getElementById("mediaTargetTableWrap").innerHTML = html;
+
+  document.getElementById("mediaTargetTableWrap").querySelectorAll("tr.group-row").forEach(tr=>{
+    tr.addEventListener("click", ()=>{
+      const g = tr.dataset.group;
+      if(App.mediaTargetView.expandedMedia.has(g)) App.mediaTargetView.expandedMedia.delete(g);
+      else App.mediaTargetView.expandedMedia.add(g);
+      renderMediaTargetTable();
+    });
+  });
+
+  bindSortHandlers("mediaTargetTableWrap", "mediaTarget", renderMediaTargetTable);
+  applyFreezeLayout("mediaTargetTableWrap","mediaTargetTable","targetFreezeHandle", gridState);
+  bindFreezeHandleDrag("mediaTargetTableWrap","mediaTargetTable","targetFreezeHandle", gridState);
+  bindColumnDragReorder("mediaTargetTable","mediaTarget",renderMediaTargetTable);
+
+  document.getElementById("exportTarget").onclick = ()=>{
+    const headerCols = cols.map(c=>c.label);
+    const lines = [headerCols.join(",")];
+    const totalLine = cols.map(c=>{
+      if(c.id==="__target") return "Total";
+      const m=METRIC_BY_ID[c.id]; const v=m.get(totalD);
+      return v===null||v===undefined?"":v;
+    });
+    lines.push(totalLine.map(csvCell).join(","));
+    groupList.forEach(grp=>{
+      sortRows(grp.targetRows).forEach(row=>{
+        const line = cols.map(c=>{
+          if(c.id==="__target") return row.target;
+          const m=METRIC_BY_ID[c.id]; return m.get(row.d);
+        });
+        lines.push(line.map(csvCell).join(","));
+      });
+    });
+    const csv = "﻿"+lines.join("\r\n");
+    const blob = new Blob([csv],{type:"text/csv;charset=utf-8;"});
+    const a = document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="타겟별_분석.csv";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  };
+
+  renderColMgrPopup("targetColMgrPopup", CAMPAIGN_PERF_COLUMNS, campaignPerfLabel, App.mediaTargetView.visibleCols, renderMediaTargetTable);
+}
+
 function renderMediaView(){
   renderMediaToggleRow();
   const source = mediaCampaignSourceRecords();
@@ -2109,6 +2431,7 @@ function renderMediaView(){
   renderMediaChartAxisSelectors();
   renderMediaTrendChart();
   renderMediaCampaignTable();
+  renderMediaTargetTable();
 }
 
 function renderDonut(canvasId, labels, data){
@@ -2783,7 +3106,8 @@ function initSidebar(){
   });
 }
 
-const COLMGR_PAIRS = [["colMgrBtn","colMgrPopup"],["mediaColMgrBtn","mediaColMgrPopup"],["creativeColMgrBtn","creativeColMgrPopup"]];
+const COLMGR_PAIRS = [["colMgrBtn","colMgrPopup"],["mediaColMgrBtn","mediaColMgrPopup"],["creativeColMgrBtn","creativeColMgrPopup"],
+  ["weeklyColMgrBtn","weeklyColMgrPopup"],["dailyColMgrBtn","dailyColMgrPopup"],["targetColMgrBtn","targetColMgrPopup"]];
 function closeOtherPopups(except){
   if(except!=="calendar" && App.cal.open) closeCalendarPopup();
   const exceptColMgr = (except && except.indexOf("colmgr:")===0) ? except.slice(7) : null;
