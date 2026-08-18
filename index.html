@@ -556,7 +556,7 @@ th.col-drop-after{box-shadow:inset -3px 0 0 0 var(--primary);}
           </div>
 
           <div class="section-card">
-            <div class="section-header">📆 주별 성과
+            <div class="section-header">📆 주간 성과
               <div class="sh-actions">
                 <button class="btn small" id="weeklyColMgrBtn">⚙ 열 관리</button>
                 <div class="colmgr-popup" id="weeklyColMgrPopup" hidden></div>
@@ -1630,7 +1630,7 @@ function renderCampaignPerfTable(){
     const expanded = App.campaignPerf.expandedMedia.has(g.mediaRaw);
     html += '<tr class="group-row" data-group="'+escapeHtml(g.mediaRaw)+'">';
     cols.forEach(c=>{
-      if(c.id==="__campaign"){ html += tdOpen(c)+(expanded?"▾":"▸")+' '+escapeHtml(g.media)+' ('+g.campaignRows.length+')</td>'; return; }
+      if(c.id==="__campaign"){ html += tdOpen(c)+(expanded?"▾":"▸")+' '+escapeHtml(g.media)+'</td>'; return; }
       if(c.id==="__media"){ html += tdOpen(c)+'-</td>'; return; }
       const m=METRIC_BY_ID[c.id]; html += tdOpen(c)+fmtMetric(m, m.get(g.groupD), false)+'</td>';
     });
@@ -1704,14 +1704,11 @@ const PERIOD_PERF_CONFIGS = {
   weekly:{
     stateKey:"weeklyPerf", gridKey:"weeklyPerf", sortKey:"weeklyPerf",
     wrapId:"weeklyPerfTableWrap", tableId:"weeklyPerfTable", freezeId:"weeklyPerfFreezeHandle",
-    colMgrPopupId:"weeklyColMgrPopup", exportBtnId:"exportWeekly", exportFileName:"주별_성과.csv",
+    colMgrPopupId:"weeklyColMgrPopup", exportBtnId:"exportWeekly", exportFileName:"주간_성과.csv",
     periodLabel:"주차",
     skip:r=>!(r.year>=2000),
     keyOf:r=>(r.year||"-")+"-"+(r.week||"-"),
-    labelOf:g=>{
-      const base = (g.year&&g.week) ? g.year+"-"+g.week : "(미지정)";
-      return (g.minDate&&g.maxDate) ? base+" ("+toISODate(g.minDate)+" ~ "+toISODate(g.maxDate)+")" : base;
-    }
+    labelOf:g=>g.week || "(미지정)"
   },
   daily:{
     stateKey:"dailyPerf", gridKey:"dailyPerf", sortKey:"dailyPerf",
@@ -1795,7 +1792,7 @@ function renderPeriodPerfTable(kind){
     const expanded = state.expandedGroups.has(g.key);
     html += '<tr class="group-row" data-group="'+escapeHtml(g.key)+'">';
     cols.forEach(c=>{
-      if(c.id==="__period"){ html += tdOpen(c)+(expanded?"▾":"▸")+' '+escapeHtml(g.label)+' ('+g.mediaRows.length+')</td>'; return; }
+      if(c.id==="__period"){ html += tdOpen(c)+(expanded?"▾":"▸")+' '+escapeHtml(g.label)+'</td>'; return; }
       const m=METRIC_BY_ID[c.id]; html += tdOpen(c)+fmtMetric(m, m.get(g.groupD), false)+'</td>';
     });
     html += '</tr>';
@@ -2222,7 +2219,7 @@ function renderMediaCampaignTable(){
     const expanded = App.mediaView.expandedMedia.has(grp.mediaRaw);
     html += '<tr class="group-row" data-group="'+escapeHtml(grp.mediaRaw)+'">';
     cols.forEach(c=>{
-      if(c.id==="__campaign"){ html += '<td class="left">'+(expanded?"▾":"▸")+' '+escapeHtml(grp.label)+' ('+grp.campaignRows.length+')</td>'; return; }
+      if(c.id==="__campaign"){ html += '<td class="left">'+(expanded?"▾":"▸")+' '+escapeHtml(grp.label)+'</td>'; return; }
       if(c.id==="__media"){ html += '<td>-</td>'; return; }
       const m = METRIC_BY_ID[c.id]; html += '<td>'+fmtMetric(m, m.get(grp.groupD), false)+'</td>';
     });
@@ -2349,7 +2346,7 @@ function renderMediaTargetTable(){
     const expanded = App.mediaTargetView.expandedMedia.has(grp.mediaRaw);
     html += '<tr class="group-row" data-group="'+escapeHtml(grp.mediaRaw)+'">';
     cols.forEach(c=>{
-      if(c.id==="__target"){ html += '<td class="left">'+(expanded?"▾":"▸")+' '+escapeHtml(grp.label)+' ('+grp.targetRows.length+')</td>'; return; }
+      if(c.id==="__target"){ html += '<td class="left">'+(expanded?"▾":"▸")+' '+escapeHtml(grp.label)+'</td>'; return; }
       const m = METRIC_BY_ID[c.id]; html += '<td>'+fmtMetric(m, m.get(grp.groupD), false)+'</td>';
     });
     html += '</tr>';
@@ -2462,13 +2459,16 @@ function renderDonut(canvasId, labels, data){
         const isRight = cos >= 0;
         const anchorX = props.x + cos*(props.outerRadius+2);
         const anchorY = props.y + sin*(props.outerRadius+2);
-        items.push({ pct, val, isRight, anchorX, anchorY, naturalY:anchorY });
+        const nubX = props.x + cos*(props.outerRadius+14);
+        const nubY = props.y + sin*(props.outerRadius+14);
+        items.push({ pct, val, isRight, anchorX, anchorY, nubX, nubY, naturalY:anchorY });
       });
       if(!items.length){ return; }
 
       // 라벨은 조각의 실제 각도(자연스러운 순서)를 유지하면서, 같은 쪽(좌/우) 안에서는
       // 균등한 세로 간격으로 재배치합니다 → 겹침 없음, 선끼리 교차하지 않음.
-      // 선은 조각 가장자리(anchor)에서 라벨까지 꺾임 없는 하나의 직선으로 연결합니다.
+      // 선의 시작 구간(anchor→nub)은 조각 자신의 각도를 그대로 유지해, 그래프에서
+      // 자연스럽게 뻗어나오는 것처럼 보이게 하고, 그 다음 라벨까지 이어줍니다.
       const baseGap = 27, compactGap = 16;
       const labelX = { true: cx+outerRadius+18, false: cx-outerRadius-18 };
       [true,false].forEach(side=>{
@@ -2502,6 +2502,36 @@ function renderDonut(canvasId, labels, data){
         }
       });
 
+      // nub(자연스러운 시작 방향)을 기본으로 쓰되, 조각들이 촘촘히 몰려 있어 nub를 쓰면
+      // 다른 라벨선과 교차하게 되는 경우에만 해당 항목을 직선(anchor→label)으로 되돌립니다.
+      function segCross(p1,p2,p3,p4){
+        const cr=(o,a,b)=>(a.x-o.x)*(b.y-o.y)-(a.y-o.y)*(b.x-o.x);
+        const d1=cr(p3,p4,p1), d2=cr(p3,p4,p2), d3=cr(p1,p2,p3), d4=cr(p1,p2,p4);
+        return ((d1>0&&d2<0)||(d1<0&&d2>0)) && ((d3>0&&d4<0)||(d3<0&&d4>0));
+      }
+      [true,false].forEach(side=>{
+        const list = items.filter(it=>it.isRight===side && !it.hidden);
+        list.forEach(it=>{ it.useNub = true; });
+        const lx = labelX[side];
+        const startOf = it => it.useNub ? {x:it.nubX,y:it.nubY} : {x:it.anchorX,y:it.anchorY};
+        const endOf = it => ({x:lx, y:it.labelY});
+        let changed = true, guard = 0;
+        while(changed && guard < 20){
+          changed = false; guard++;
+          for(let i=0;i<list.length;i++){
+            for(let j=i+1;j<list.length;j++){
+              if(segCross(startOf(list[i]),endOf(list[i]),startOf(list[j]),endOf(list[j]))){
+                let victim = null;
+                if(list[i].useNub && list[j].useNub) victim = list[i].pct<=list[j].pct ? list[i] : list[j];
+                else if(list[i].useNub) victim = list[i];
+                else if(list[j].useNub) victim = list[j];
+                if(victim){ victim.useNub=false; changed=true; }
+              }
+            }
+          }
+        }
+      });
+
       ctx.save();
       items.forEach(it=>{
         if(it.hidden) return;
@@ -2511,6 +2541,7 @@ function renderDonut(canvasId, labels, data){
         ctx.lineWidth = 1.25;
         ctx.beginPath();
         ctx.moveTo(it.anchorX, it.anchorY);
+        if(it.useNub) ctx.lineTo(it.nubX, it.nubY);
         ctx.lineTo(lx, it.labelY);
         ctx.stroke();
 
