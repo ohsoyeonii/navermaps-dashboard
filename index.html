@@ -2492,44 +2492,55 @@ function renderDonut(canvasId, labels, data){
         }
         const n = list.length;
         const avgY = list.reduce((s,it)=>s+it.naturalY,0)/n;
-        list.forEach((it,idx)=>{ it.labelY = avgY + (idx-(n-1)/2)*gap; it.compact = compact; });
+        const slotYs = list.map((it,idx)=> avgY + (idx-(n-1)/2)*gap);
         if(chartArea){
           const top = chartArea.top+16, bottom = chartArea.bottom-16;
           let shift = 0;
-          if(list[0].labelY < top) shift = top-list[0].labelY;
-          else if(list[n-1].labelY > bottom) shift = bottom-list[n-1].labelY;
-          if(shift) list.forEach(it=>it.labelY += shift);
+          if(slotYs[0] < top) shift = top-slotYs[0];
+          else if(slotYs[n-1] > bottom) shift = bottom-slotYs[n-1];
+          if(shift) for(let k=0;k<n;k++) slotYs[k] += shift;
         }
-      });
+        list.forEach(it=>{ it.compact = compact; it.useNub = true; });
 
-      // nub(자연스러운 시작 방향)을 기본으로 쓰되, 조각들이 촘촘히 몰려 있어 nub를 쓰면
-      // 다른 라벨선과 교차하게 되는 경우에만 해당 항목을 직선(anchor→label)으로 되돌립니다.
-      function segCross(p1,p2,p3,p4){
-        const cr=(o,a,b)=>(a.x-o.x)*(b.y-o.y)-(a.y-o.y)*(b.x-o.x);
-        const d1=cr(p3,p4,p1), d2=cr(p3,p4,p2), d3=cr(p1,p2,p3), d4=cr(p1,p2,p4);
-        return ((d1>0&&d2<0)||(d1<0&&d2>0)) && ((d3>0&&d4<0)||(d3<0&&d4>0));
-      }
-      [true,false].forEach(side=>{
-        const list = items.filter(it=>it.isRight===side && !it.hidden);
-        list.forEach(it=>{ it.useNub = true; });
+        // 모든 선이 조각 자신의 각도에서 자연스럽게 뻗어나오는 모양(anchor→nub)을
+        // 유지하도록 하되, 촘촘히 몰린 조각들 때문에 이 상태로는 선끼리 교차하는 경우
+        // 라벨 자리(slot) 배정 순서를 자연스러운 순서에서 최소한만 바꿔 교차를 없앱니다.
+        function segCross(p1,p2,p3,p4){
+          const cr=(o,a,b)=>(a.x-o.x)*(b.y-o.y)-(a.y-o.y)*(b.x-o.x);
+          const d1=cr(p3,p4,p1), d2=cr(p3,p4,p2), d3=cr(p1,p2,p3), d4=cr(p1,p2,p4);
+          return ((d1>0&&d2<0)||(d1<0&&d2>0)) && ((d3>0&&d4<0)||(d3<0&&d4>0));
+        }
+        function permutations(arr){
+          if(arr.length<=1) return [arr];
+          const res=[];
+          arr.forEach((v,i)=>{
+            const rest = arr.slice(0,i).concat(arr.slice(i+1));
+            permutations(rest).forEach(p=>res.push([v].concat(p)));
+          });
+          return res;
+        }
         const lx = labelX[side];
-        const startOf = it => it.useNub ? {x:it.nubX,y:it.nubY} : {x:it.anchorX,y:it.anchorY};
-        const endOf = it => ({x:lx, y:it.labelY});
-        let changed = true, guard = 0;
-        while(changed && guard < 20){
-          changed = false; guard++;
-          for(let i=0;i<list.length;i++){
-            for(let j=i+1;j<list.length;j++){
-              if(segCross(startOf(list[i]),endOf(list[i]),startOf(list[j]),endOf(list[j]))){
-                let victim = null;
-                if(list[i].useNub && list[j].useNub) victim = list[i].pct<=list[j].pct ? list[i] : list[j];
-                else if(list[i].useNub) victim = list[i];
-                else if(list[j].useNub) victim = list[j];
-                if(victim){ victim.useNub=false; changed=true; }
-              }
+        const crossesAny = assign => {
+          for(let i=0;i<n;i++){
+            for(let j=i+1;j<n;j++){
+              const pi={x:list[i].nubX,y:list[i].nubY}, pj={x:list[j].nubX,y:list[j].nubY};
+              const li={x:lx,y:slotYs[assign[i]]}, lj={x:lx,y:slotYs[assign[j]]};
+              if(segCross(pi,li,pj,lj)) return true;
             }
           }
+          return false;
+        };
+        let assign = list.map((_,i)=>i);
+        if(n>1 && n<=7 && crossesAny(assign)){
+          const perms = permutations(list.map((_,i)=>i))
+            .sort((a,b)=>{
+              const da=a.reduce((s,v,i)=>s+Math.abs(v-i),0), db=b.reduce((s,v,i)=>s+Math.abs(v-i),0);
+              return da-db;
+            });
+          const found = perms.find(p=>!crossesAny(p));
+          if(found) assign = found;
         }
+        list.forEach((it,i)=>{ it.labelY = slotYs[assign[i]]; });
       });
 
       ctx.save();
