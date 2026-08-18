@@ -2146,14 +2146,30 @@ function renderDonut(canvasId, labels, data){
       // 라벨은 조각의 실제 각도(자연스러운 순서)를 유지하면서, 같은 쪽(좌/우) 안에서는
       // 균등한 세로 간격으로 재배치합니다 → 겹침 없음, 선끼리 교차하지 않음.
       // 선은 조각 가장자리(anchor)에서 라벨까지 꺾임 없는 하나의 직선으로 연결합니다.
-      const gap = 27;
-      const labelX = { true: cx+outerRadius+38, false: cx-outerRadius-38 };
+      const baseGap = 27, compactGap = 16;
+      const labelX = { true: cx+outerRadius+18, false: cx-outerRadius-18 };
       [true,false].forEach(side=>{
-        const list = items.filter(it=>it.isRight===side).sort((a,b)=>a.naturalY-b.naturalY);
+        let list = items.filter(it=>it.isRight===side).sort((a,b)=>a.naturalY-b.naturalY);
+        if(!list.length) return;
+        let gap = baseGap, compact = false;
+        if(chartArea && list.length>1){
+          const available = (chartArea.bottom-16) - (chartArea.top+16);
+          if(available/(list.length-1) < baseGap){
+            compact = true;
+            // 한 줄(%·금액) 표기로도 다 못 채우면, 값이 작은 라벨부터 생략합니다
+            // (조각 자체는 도넛에 그대로 남고, 외부 라벨/선만 생략됩니다).
+            while(list.length>1 && available/(list.length-1) < compactGap){
+              let minIdx = 0;
+              for(let k=1;k<list.length;k++) if(list[k].pct<list[minIdx].pct) minIdx = k;
+              list[minIdx].hidden = true;
+              list = list.filter((_,k)=>k!==minIdx);
+            }
+            gap = list.length>1 ? Math.max(compactGap, Math.min(baseGap, available/(list.length-1))) : baseGap;
+          }
+        }
         const n = list.length;
-        if(!n) return;
         const avgY = list.reduce((s,it)=>s+it.naturalY,0)/n;
-        list.forEach((it,idx)=>{ it.labelY = avgY + (idx-(n-1)/2)*gap; });
+        list.forEach((it,idx)=>{ it.labelY = avgY + (idx-(n-1)/2)*gap; it.compact = compact; });
         if(chartArea){
           const top = chartArea.top+16, bottom = chartArea.bottom-16;
           let shift = 0;
@@ -2165,6 +2181,7 @@ function renderDonut(canvasId, labels, data){
 
       ctx.save();
       items.forEach(it=>{
+        if(it.hidden) return;
         const lx = labelX[it.isRight];
         const textX = lx + (it.isRight ? 6 : -6);
         ctx.strokeStyle = lineColor;
@@ -2177,10 +2194,15 @@ function renderDonut(canvasId, labels, data){
         ctx.textAlign = it.isRight ? "left" : "right";
         ctx.textBaseline = "middle";
         ctx.fillStyle = textColor;
-        ctx.font = "700 12px Pretendard, sans-serif";
-        ctx.fillText((it.pct*100).toFixed(1)+"%", textX, it.labelY-7);
-        ctx.font = "400 10.5px Pretendard, sans-serif";
-        ctx.fillText(fmtWonAbbrev(it.val, true), textX, it.labelY+7);
+        if(it.compact){
+          ctx.font = "700 11px Pretendard, sans-serif";
+          ctx.fillText((it.pct*100).toFixed(1)+"% · "+fmtWonAbbrev(it.val, true), textX, it.labelY);
+        } else {
+          ctx.font = "700 12px Pretendard, sans-serif";
+          ctx.fillText((it.pct*100).toFixed(1)+"%", textX, it.labelY-7);
+          ctx.font = "400 10.5px Pretendard, sans-serif";
+          ctx.fillText(fmtWonAbbrev(it.val, true), textX, it.labelY+7);
+        }
       });
       ctx.restore();
     }
